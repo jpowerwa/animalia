@@ -56,7 +56,7 @@ The service will respond with a 200 status code and the same JSON body as is use
  "fact": "the otter lives in rivers"
 }`
 
-If the API cannot find information that is related to the query, it will still return a 200 status code and a slighlty different JSON  body:
+If the API cannot find information that is related to the query, it will return a 404 status code and a slighlty different JSON  body:
 
 `{
  "message": "I can't answer your question."
@@ -70,10 +70,10 @@ We have provided training data for this project that comes in the form of a CSV 
 
  * _concept:_ The name of the concept. For example: 'otter' or 'river'
  * _type:_ The type of the concept. One of: animal,place,number,body part,food,species
- * _lives:_ Does your implementation handle malformed, edge case, or fuzzed input without failing and while returning meaningful messages on the cause of the failure?
+ * _lives:_ A semantic relationship that defines where the animal lives. The values can be empty or any concept that is a place type.
  * _has body part:_ A semantic relationship that defines the body parts of the animal. The values can be empty any concept which has the body part type.
- * _has fur:_ A semantic relationship that defines if the animal has fur or not. The values can be true, false, or don't know.
- * _has scales:_ A semantic relationship that defines if the animal has scales or not. The values can be true, false, or don't know.
+ * _has fur:_ A semantic relationship that defines if the animal has fur or not. The values can be true, false, or empty.
+ * _has scales:_ A semantic relationship that defines if the animal has scales or not. The values can be true, false, or empty.
  * _eats:_ A semantic relationship that defines what the animal eats. The values can be empty or any concept which is food.
  * _parent species:_ A semantic relationship that defines the parent species of the animal or species. The values can be a species or empty.
  * _leg count:_ A semantic relationship that defines if the number of legs an animal has. The values can be a number or empty.
