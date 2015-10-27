@@ -10,20 +10,20 @@ Your job is to write an implementation that satisfies the API specification and 
 
 We will assess your implementation on several different critiera:
 
- * _Correctness:_ Does your API adhere to the specification and does it return correct or otherwise reaosnable results through the course of training and querying?
- * _Robustness:_ Does your implementation handle malformed, edge case, or fuzzed input without failing and while returning meaningful messages on the cause of the failure?
- * _Readability:_ Can an engineer unfamiliar with your implementation read and understand what you wrote with sufficient depth to make modifications? This criteria speaks to style, naming conventions, organization, and comments
- * _Scalability:_ If we were to scale the training data from its current form to 10's of thousands of animal concepts and beyond will your implementation be able to support the larger number of concepts without become unusably slow or otherwise broken.
+* _Correctness:_ Does your API adhere to the specification and does it return correct or otherwise reaosnable results through the course of training and querying?
+* _Robustness:_ Does your implementation handle malformed, edge case, or fuzzed input without failing and while returning meaningful messages on the cause of the failure?
+* _Readability:_ Can an engineer unfamiliar with your implementation read and understand what you wrote with sufficient depth to make modifications? This criteria speaks to style, naming conventions, organization, and comments
+* _Scalability:_ If we were to scale the training data from its current form to 10's of thousands of animal concepts and beyond will your implementation be able to support the larger number of concepts without become unusably slow or otherwise broken.
 
- # API Specification
+# API Specification
 
- The API is a HTTP/REST API. The document format is JSON, with a Content Type of `application/json`. 
+The API is a HTTP/REST API. The document format is JSON, with a Content Type of `application/json`. 
 
- ## Training API
+## Training API
 
- You "train" your service by sending sentences to the service in a particular form.  The training sentences have the abstract form of: `article animal semantic_clause concept`. For example: "the otter lives in rivers".  In that example the article is "the", the animal is "otter", the semantic clause is "lives in", and the concept is "rivers".  
+You "train" your service by sending sentences to the service in a particular form.  The training sentences have the abstract form of: `article animal semantic_clause concept`. For example: "the otter lives in rivers".  In that example the article is "the", the animal is "otter", the semantic clause is "lives in", and the concept is "rivers".  
 
- Training is done by submitting a HTTP POST to the to the /animals resource with a JSON encoded body that contains a single sentence in a JSON object with the field name of: "fact". An example JSON body would therefore look like this:
+Training is done by submitting a HTTP POST to the to the /animals resource with a JSON encoded body that contains a single sentence in a JSON object with the field name of: "fact". An example JSON body would therefore look like this:
 
  `{
  "fact": "the otter lives in rivers"
@@ -39,14 +39,14 @@ Sentences that are cannot be parsed by the service because they do not follow th
 
 You query the API about the semantic relationships of animals. A query is submitted as a sentence in specific form that follows one of the following patterns:
 
- * "Where does the otter live?"
- * "How many legs does the otter have"?
- * "Which animals have 4 legs?"
- * "How many animals are mammals?"
+* "Where does the otter live?"
+* "How many legs does the otter have"?
+* "Which animals have 4 legs?"
+* "How many animals are mammals?"
 
- A query is submitted by sending a HTTP GET to the /animals resource with a URL parameter with the key 'q'. For example: 
+A query is submitted by sending a HTTP GET to the /animals resource with a URL parameter with the key 'q'. For example: 
 
- `
+`
 GET /animals?q="where does the otter live?" HTTP/1.1
 `
 
@@ -69,11 +69,11 @@ If the request is malformed then the API will return a HTTP 400 status code.
 We have provided training data for this project that comes in the form of a CSV file. The CSV has one row per trainable concept with the following columns:
 
  * _concept:_ The name of the concept. For example: 'otter' or 'river'
- * _type:_ The type of the concept. One of: animal,place,number,body part,food,species
+ * _type:_ The type of the concept. One of: `animal`,`place`,`number`,`body part`,`food`,`species`
  * _lives:_ A semantic relationship that defines where the animal lives. The values can be empty or any concept that is a place type.
  * _has body part:_ A semantic relationship that defines the body parts of the animal. The values can be empty any concept which has the body part type.
- * _has fur:_ A semantic relationship that defines if the animal has fur or not. The values can be true, false, or empty.
- * _has scales:_ A semantic relationship that defines if the animal has scales or not. The values can be true, false, or empty.
+ * _has fur:_ A semantic relationship that defines if the animal has fur or not. The values can be `true`, `false`, or empty.
+ * _has scales:_ A semantic relationship that defines if the animal has scales or not. The values can be `true`, `false`, or empty.
  * _eats:_ A semantic relationship that defines what the animal eats. The values can be empty or any concept which is food.
  * _parent species:_ A semantic relationship that defines the parent species of the animal or species. The values can be a species or empty.
  * _leg count:_ A semantic relationship that defines if the number of legs an animal has. The values can be a number or empty.
