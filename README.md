@@ -53,7 +53,7 @@ GET /animals?q="where does the otter live?" HTTP/1.1
 The service will respond with a 200 status code and the same JSON body as is used to train the API. For example:
 
 `{
- "fact": "the otter lives in rivers"
+ "fact": "rivers"
 }`
 
 If the API cannot find information that is related to the query, it will return a 404 status code and a slighlty different JSON  body:
@@ -78,8 +78,31 @@ We have provided training data for this project that comes in the form of a CSV 
  * _parent species:_ A semantic relationship that defines the parent species of the animal or species. The values can be a species or empty.
  * _leg count:_ A semantic relationship that defines if the number of legs an animal has. The values can be a number or empty.
 
+# Example Queries
+
+Your implementation will need to be able to handle queries that are simple lookups of attributes, aggregations of animals or counts with common features, and queries that require inference. Some example questions are:
+
+* How many animals have fins?
+* Which animals eat berries?
+* Which animals eat mammals?
+* How many animals do not eat berries?
+* Does a bear have scales?
+* Do mammals live in the ocean? 
+
+The responses are simple yes or no, numbers or lists. The responses do not need to be formed into sentences. So the responses to the above questions would be:
+
+* How many animals have fins? 2
+* Which animals eat berries? bears, coyotes, and deer.
+* Which animals eat mammals? coyotes and bears
+* How many animals do not eat berries? 5
+* Does a bear have scales? no
+* Do mammals live in the ocean? yes
+
+
 # Use of [wit.ai](http://wit.ai/)
 
 A succesful implementation will make use of [wit.ai](http://wit.ai/) to parse the training sentences and extract the parts required to populated the service's collection of facts so it can later answer questions. We have provided a trained [wit.ai](http://wit.ai/) application for you to use in your application.  The trained [wit.ai](http://wit.ai/) instance will allow you to identify the intent of questions and of fact statements along with the features or entities in statements, including animals, semantic relationships and features.  You can use an existing [wit.ai](http://wit.ai/) integration library or use their HTTP API directly. Be sure to handle error cases in your [wit.ai](http://wit.ai/) integration as a part of your implementation.
+
+The wit API key we provide will allow you to use a wit integration library or an integration your write yourself to extract the intents and entities on which we have trained so you can understand more about the set of possible values.
 
 
