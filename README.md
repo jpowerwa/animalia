@@ -141,4 +141,12 @@ A succesful implementation will make use of [wit.ai](http://wit.ai/) to parse th
 
 The wit API key we provide will allow you to use a wit integration library or an integration your write yourself to extract the intents and entities on which we have trained so you can understand more about the set of possible values.
 
+# Runtime Requirements
+
+Your implementation needs to run as a HTTP Service on the local machine. You should configure service so that it will listen on localhost on port 8080. Your submission must include clear instructions on how to setup the runtime environment and succesfully run your service. We therefore suggest using either self contained projects or relying on frameworks that have automated package manaagement for retrieving dependencies.
+
+# External Services and Libraries
+
+Feel free to use whatever external services and libraries you feel are best suited to solve the problem. It is not neccessary to write the code for your solution from the ground up. You can use databases, utility libraries, or external web services as you see fit.
+
 
