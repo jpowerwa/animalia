@@ -21,19 +21,56 @@ The API is a HTTP/REST API. The document format is JSON, with a Content Type of 
 
 ## Training API
 
-You "train" your service by sending sentences to the service in a particular form.  The training sentences have the abstract form of: `article animal semantic_clause concept`. For example: "the otter lives in rivers".  In that example the article is "the", the animal is "otter", the semantic clause is "lives in", and the concept is "rivers".  
+You "train" your service by sending sentences to the service in a particular format.  The training sentences have the abstract form of: `article animal relationship concept`. For example: "the otter lives in rivers".  In that example the article is "the", the animal is "otter", the semantic clause is "lives in", and the concept is "rivers".  
 
-Training is done by submitting a HTTP POST to the to the /animals resource with a JSON encoded body that contains a single sentence in a JSON object with the field name of: "fact". An example JSON body would therefore look like this:
+Training is done by submitting a HTTP POST to the to the /animals/facts resource with a JSON encoded body that contains a single sentence in a JSON object with the field name of: "fact". An example JSON body would therefore look like this:
 
  `{
  "fact": "the otter lives in rivers"
 }`    
 
-If the POST completed succesfully the API will return a HTTP 200 status code with no body.
+If the POST completed succesfully the API will return a HTTP 200 status code with a JSON formatted body that contains an identifier for the newly created fact. The response document will look like this:
 
-You can submit the exact same sentence repeatedly and the service will be trained in the exact same way as a result. 
 
-Sentences that are cannot be parsed by the service because they do not follow the expected form will result in a HTTP 400 status code and a error message detailing that the parse attempt has failed.
+ `{
+ "id": "0b3431e3-2351-46f1-ad90-fa022a60ba15"
+}`
+
+The id is a globaly unique identifier.
+
+You can submit the exact same sentence repeatedly and the service will be trained in the exact same way as a result and will return the exact same identifier. 
+
+Sentences that are cannot be parsed by the service because they do not follow the expected form will result in a HTTP 400 status code and a error message detailing that the parse attempt has failed. The error message will also be in a JSON format and will look at follows:
+
+ `{
+ "message": "Failed to parse your fact"
+}`
+
+## Fact Management API
+
+Individidual facts can be retrieved using an HTTP GET on the '/animals/facts/' resource using the GUID to specify the target fact:
+
+`
+GET /animals/facts/0b3431e3-2351-46f1-ad90-fa022a60ba15  HTTP/1.1
+`
+
+If a fact with the speciried id is known to the service it is returned with a 200 status code and a response document that looks like this:
+
+ `{
+ "fact": "the otter lives in rivers"
+}` 
+
+IF a fact with the specified id is not present then the response will have a 404 status code and response body will be empty.
+
+Individual facts can also be deleted. To delete a fact the client can issue an HTTP DELETE and specify the GUID of the fact to delete like this:
+
+`
+DELETE /animals/facts/0b3431e3-2351-46f1-ad90-fa022a60ba15  HTTP/1.1
+`
+
+If a fact with the specified GUID exists then it will be deleted and the response will have a status code of 204 and not have a response body. If a fact with the specifeid GUID could not be found then the service will return a response with a 404 status code and no response body.
+
+When a fact is deleted then the information it represents about animals is no longer available to the service and the servie must stop answering questions with information from the fact.
 
 ## Query API
 
@@ -97,7 +134,6 @@ The responses are simple yes or no, numbers or lists. The responses do not need 
 * How many animals do not eat berries? 5
 * Does a bear have scales? no
 * Do mammals live in the ocean? yes
-
 
 # Use of [wit.ai](http://wit.ai/)
 
