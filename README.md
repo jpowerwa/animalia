@@ -6,14 +6,18 @@ You will use an external service called [wit.ai](http://wit.ai/) to parse natura
 
 Your job is to write an implementation that satisfies the API specification and verify your implementation. You may use any implementation language you prefer provided we can run your submission on our hardware. Your submission must instructions for how to run your submission, including whatever preliminary steps are required to set up the build and runtime environments on our computers.  We use Macs with the latest OSX, so you can assume that environment or a comparable enviroment like a modern Linux distribution. Unfortunately we cannot support submissions that require Microsoft Windows to run.
 
-# Assessment Criteria
+# Assessment and Interview
 
-We will assess your implementation on several different critiera:
+After we receive your submission we will conduct a code review and execute our suite of integration tests that assert the correctness of the API. Through the course of our review and testing we will assess your implementation on several different critiera:
 
 * _Correctness:_ Does your API adhere to the specification and does it return correct or otherwise reaosnable results through the course of training and querying?
 * _Robustness:_ Does your implementation handle malformed, edge case, or fuzzed input without failing and while returning meaningful messages on the cause of the failure?
 * _Readability:_ Can an engineer unfamiliar with your implementation read and understand what you wrote with sufficient depth to make modifications? This criteria speaks to style, naming conventions, organization, and comments
 * _Scalability:_ If we were to scale the training data from its current form to 10's of thousands of animal concepts and beyond will your implementation be able to support the larger number of concepts without become unusably slow or otherwise broken.
+
+On the day of your on site interview you will present your solution to 2-3 members of the engineering team. You should prepare to talk about your implementation approach, design trade offs and approach to testing and validation. We will also ask you to run your test suite. 
+
+Through the course of the one-on-one interviews we will ask you further questions about how you would extend your service implementation and how you would fix any issues we find our testing to improve your solution.
 
 # API Specification
 
@@ -68,7 +72,13 @@ Individual facts can also be deleted. To delete a fact the client can issue an H
 DELETE /animals/facts/0b3431e3-2351-46f1-ad90-fa022a60ba15  HTTP/1.1
 `
 
-If a fact with the specified GUID exists then it will be deleted and the response will have a status code of 204 and not have a response body. If a fact with the specifeid GUID could not be found then the service will return a response with a 404 status code and no response body.
+If a fact with the specified GUID exists then it will be deleted and the response will have a status code of 200 and have a response body with the id of the fact that was deleted. This response document should look as follows:
+
+ `{
+ "id": "0b3431e3-2351-46f1-ad90-fa022a60ba15"
+}`
+
+If a fact with the specifeid GUID could not be found then the service will return a response with a 404 status code and no response body.
 
 When a fact is deleted then the information it represents about animals is no longer available to the service and the servie must stop answering questions with information from the fact.
 
