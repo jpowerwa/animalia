@@ -1,0 +1,34 @@
+concept,type,lives,has body part,has fur,has scales,eats,parent species,leg count
+bear,animal,forest:meadow,leg:tail,TRUE,FALSE,berries:insects:fish,mammal,4
+deer,animal,forest:meadow,leg:tail,TRUE,FALSE,grass,mammal,4
+skunk,animal,forest:meadow,Leg:tail,TRUE,FALSE,berries:insects,mammal,4
+gecko,animal,tree,Leg:tail,FALSE,TRUE,insects,mammal,4
+heron,animal,river:ocean,Leg:tail,FALSE,FALSE,fish:herring,bird,2
+cormorant,animal,ocean,Leg:tail,FALSE,FALSE,fish:herring,bird,2
+herring,animal,ocean,tail,FALSE,TRUE,insects,fish,0
+salmon,animal,river:ocean,tail,FALSE,TRUE,insects,fish,0
+otter,animal,river:ocean,leg:tail,TRUE,FALSE,salmon:herring:fish,mammal,4
+bee,animal,meadow,leg:stinger,TRUE,FALSE,nectar,insect,6
+spider,animal,forest:meadow:web,leg,FALSE,FALSE,inects,arachnid,8
+coyote,animal,forest:meadow,leg:tail,TRUE,FALSE,berries:insects:fish:otter:gecko:skunk,mammal,4
+berries,food,,,,,,,
+grass,food,,,,,,,
+nectar,food,,,,,,,
+insects,species,,,,,,,
+tail,body part,,,,,,,
+stinger,body part,,,,,,,
+leg,body part,,,,,,,
+river,place,,,,,,,
+hive,place,,,,,,,
+forest,place,,,,,,,
+meadow,place,,,,,,,
+tree,place,,,,,,,
+den,place,,,,,,,
+web,place,,,,,,,
+river,place,,,,,,,
+ocean,place,,,,,,,
+reptile,species,,,,,,,
+mammal,species,,,,,,,
+arachnid,species,,,,,,,
+fish,species,,,,,,,
+bird,species,,,,,,,
