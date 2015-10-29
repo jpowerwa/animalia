@@ -6,6 +6,10 @@ You will use an external service called [wit.ai](http://wit.ai/) to parse natura
 
 Your job is to write an implementation that satisfies the API specification and verify your implementation. You may use any implementation language you prefer provided we can run your submission on our hardware. Your submission must instructions for how to run your submission, including whatever preliminary steps are required to set up the build and runtime environments on our computers.  We use Macs with the latest OSX, so you can assume that environment or a comparable enviroment like a modern Linux distribution. Unfortunately we cannot support submissions that require Microsoft Windows to run.
 
+# Submitting your Implementation
+
+If are are reading this then you already have github account. In your github account create a repository for your submission. Include a readme.md, just like the file you are currently reading, to describe how to run and test your solution. To submit your implementation send us a link to your solution, or add us as collaborators if your solution repository is private. 
+
 # Assessment and Interview
 
 After we receive your submission we will conduct a code review and execute our suite of integration tests that assert the correctness of the API. Through the course of our review and testing we will assess your implementation on several different critiera:
@@ -149,7 +153,7 @@ The responses are simple yes or no, numbers or lists. The responses do not need 
 
 A succesful implementation will make use of [wit.ai](http://wit.ai/) to parse the training sentences and extract the parts required to populated the service's collection of facts so it can later answer questions. We have provided a trained [wit.ai](http://wit.ai/) application for you to use in your application.  The trained [wit.ai](http://wit.ai/) instance will allow you to identify the intent of questions and of fact statements along with the features or entities in statements, including animals, semantic relationships and features.  You can use an existing [wit.ai](http://wit.ai/) integration library or use their HTTP API directly. Be sure to handle error cases in your [wit.ai](http://wit.ai/) integration as a part of your implementation.
 
-The wit API key we provide will allow you to use a wit integration library or an integration your write yourself to extract the intents and entities on which we have trained so you can understand more about the set of possible values.
+The wit API Key to use is `JZKCMFUAZKZ5FQZT3JXEZVJM2XVNNPXI` the app id is: `56300313-4dfd-4da3-a74d-2ae701d1cfbb`. The wit API key we provide will allow you to use a wit integration library or an integration your write yourself to extract the intents and entities on which we have trained so you can understand more about the set of possible values.
 
 # Runtime Requirements
 
