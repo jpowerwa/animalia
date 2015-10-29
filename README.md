@@ -8,7 +8,7 @@ Your job is to write an implementation that satisfies the API specification and 
 
 # Submitting your Implementation
 
-If are are reading this then you already have github account. In your github account create a repository for your submission. Include a readme.md, just like the file you are currently reading, to describe how to run and test your solution. To submit your implementation send us a link to your solution, or add us as collaborators if your solution repository is private. 
+If are are reading this then you already have a github account. In your github account create a repository for your submission. Include a readme.md, just like the file you are currently reading, to describe how to run and test your solution. To submit your implementation send us a link to your solution, or add us as collaborators if your solution repository is private. 
 
 # Assessment and Interview
 
@@ -17,11 +17,11 @@ After we receive your submission we will conduct a code review and execute our s
 * _Correctness:_ Does your API adhere to the specification and does it return correct or otherwise reaosnable results through the course of training and querying?
 * _Robustness:_ Does your implementation handle malformed, edge case, or fuzzed input without failing and while returning meaningful messages on the cause of the failure?
 * _Readability:_ Can an engineer unfamiliar with your implementation read and understand what you wrote with sufficient depth to make modifications? This criteria speaks to style, naming conventions, organization, and comments
-* _Scalability:_ If we were to scale the training data from its current form to 10's of thousands of animal concepts and beyond will your implementation be able to support the larger number of concepts without become unusably slow or otherwise broken.
+* _Scalability:_ If we were to scale the training data from its current form to 10's of thousands of animal concepts will your implementation be able to support the larger number of concepts without become unusably slow or otherwise broken.
 
-On the day of your on site interview you will present your solution to 2-3 members of the engineering team. You should prepare to talk about your implementation approach, design trade offs and approach to testing and validation. We will also ask you to run your test suite. 
+On the day of your on-site interview you will present your solution to 2-3 members of the engineering team. You should prepare to talk about your implementation approach, design trade offs and approach to testing and validation. We will also ask you to run your test suite. 
 
-Through the course of the one-on-one interviews we will ask you further questions about how you would extend your service implementation and how you would fix any issues we find our testing to improve your solution.
+Through the course of the one-on-one interviews we will ask you further questions about how you would extend your service implementation and how you would fix any issues we find in our own testing to improve your solution.
 
 # API Specification
 
@@ -44,11 +44,11 @@ If the POST completed succesfully the API will return a HTTP 200 status code wit
  "id": "0b3431e3-2351-46f1-ad90-fa022a60ba15"
 }`
 
-The id is a globaly unique identifier.
+The id is a globaly unique identifier (GUID).
 
 You can submit the exact same sentence repeatedly and the service will be trained in the exact same way as a result and will return the exact same identifier. 
 
-Sentences that are cannot be parsed by the service because they do not follow the expected form will result in a HTTP 400 status code and a error message detailing that the parse attempt has failed. The error message will also be in a JSON format and will look at follows:
+Sentences that cannot be parsed by the service because they do not follow the expected form will result in a HTTP 400 status code and a error message detailing that the parse attempt has failed. The error message will also be in a JSON format and will look as follows:
 
  `{
  "message": "Failed to parse your fact"
@@ -62,7 +62,7 @@ Individidual facts can be retrieved using an HTTP GET on the '/animals/facts/' r
 GET /animals/facts/0b3431e3-2351-46f1-ad90-fa022a60ba15  HTTP/1.1
 `
 
-If a fact with the speciried id is known to the service it is returned with a 200 status code and a response document that looks like this:
+If a fact with the specified id is known to the service it is returned with a 200 status code and a response document that looks like this:
 
  `{
  "fact": "the otter lives in rivers"
@@ -155,12 +155,14 @@ A succesful implementation will make use of [wit.ai](http://wit.ai/) to parse th
 
 The wit API Key to use is `JZKCMFUAZKZ5FQZT3JXEZVJM2XVNNPXI` the app id is: `56300313-4dfd-4da3-a74d-2ae701d1cfbb`. The wit API key we provide will allow you to use a wit integration library or an integration your write yourself to extract the intents and entities on which we have trained so you can understand more about the set of possible values.
 
+Our training of wit is not perfect. If you find that there are query or fact intents that we have not covered in our training let us know via e-mail. We will do our best to annotate the examples you sent to wit that have failed. Wit will record all of the facts questions you send to it, so we can find any queries that failed to parse and annotate them.
+
 # Runtime Requirements
 
-Your implementation needs to run as a HTTP Service on the local machine. You should configure service so that it will listen on localhost on port 8080. Your submission must include clear instructions on how to setup the runtime environment and succesfully run your service. We therefore suggest using either self contained projects or relying on frameworks that have automated package manaagement for retrieving dependencies.
+Your implementation needs to run as a HTTP Service on the local machine. You should configure your service so that it will listen on localhost on port 8080 by default. Your submission must include clear instructions on how to setup the runtime environment and succesfully run your service. We therefore suggest using either self contained projects or relying on frameworks that have automated package manaagement for retrieving dependencies.
 
 # External Services and Libraries
 
-Feel free to use whatever external services and libraries you feel are best suited to solve the problem. It is not neccessary to write the code for your solution from the ground up. You can use databases, utility libraries, or external web services as you see fit.
+Feel free to use whatever external services and libraries you feel are best suited to solve the problem. It is not neccessary to write the code for your solution from the ground up. You can use databases, utility libraries, or external web services as you see fit. 
 
 
