@@ -4,11 +4,11 @@ Welcome to animalia, Rafa's at-home interview question. The purpose of this exer
 
 You will use an external service called [wit.ai](http://wit.ai/) to parse natural language input to the API implementation. We have trainined an instance of [wit.ai](http://wit.ai/) to help you with this task. We have also provided you with a set of training data that you can use to teach your implementation about the domain of animals. 
 
-Your job is to write an implementation that satisfies the API specification and verify your implementation. You may use any implementation language you prefer provided we can run your submission on our hardware. Your submission must instructions for how to run your submission, including whatever preliminary steps are required to set up the build and runtime environments on our computers.  We use Macs with the latest OSX, so you can assume that environment or a comparable enviroment like a modern Linux distribution. Unfortunately we cannot support submissions that require Microsoft Windows to run.
+Your job is to write an implementation that satisfies the API specification and verify your implementation. You may use any implementation language you prefer provided we can run your submission on our hardware. Your submission must include instructions for how to run your submission, including whatever preliminary steps are required to set up the build and runtime environments on our computers.  We use Macs with the latest OSX, so you can assume that environment or a comparable enviroment like a modern Linux distribution. Unfortunately we cannot support submissions that require Microsoft Windows to run.
 
 # Submitting your Implementation
 
-If are are reading this then you already have a github account. In your github account create a repository for your submission. Include a readme.md, just like the file you are currently reading, to describe how to run and test your solution. To submit your implementation send us a link to your solution, or add us as collaborators if your solution repository is private. 
+If are are reading this then you already have a github account. In your github account create a repository for your submission. Include a README.md, just like the file you are currently reading, to describe how to run and test your solution. To submit your implementation send us a link to your solution, or add us as collaborators if your solution repository is private.
 
 # Assessment and Interview
 
@@ -17,7 +17,7 @@ After we receive your submission we will conduct a code review and execute our s
 * _Correctness:_ Does your API adhere to the specification and does it return correct or otherwise reaosnable results through the course of training and querying?
 * _Robustness:_ Does your implementation handle malformed, edge case, or fuzzed input without failing and while returning meaningful messages on the cause of the failure?
 * _Readability:_ Can an engineer unfamiliar with your implementation read and understand what you wrote with sufficient depth to make modifications? This criteria speaks to style, naming conventions, organization, and comments
-* _Scalability:_ If we were to scale the training data from its current form to 10's of thousands of animal concepts will your implementation be able to support the larger number of concepts without become unusably slow or otherwise broken.
+* _Scalability:_ If we were to scale the training data from its current form to 10s of thousands of animal concepts will your implementation be able to support the larger number of concepts without become unusably slow or otherwise broken.
 
 On the day of your on-site interview you will present your solution to 2-3 members of the engineering team. You should prepare to talk about your implementation approach, design trade offs and approach to testing and validation. We will also ask you to run your test suite. 
 
