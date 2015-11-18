@@ -2,13 +2,33 @@
 
 Welcome to animalia, Rafa's at-home interview question. The purpose of this exercise is for you to demonstrate your software development competency by implementing a web API that we will specify below. The animalia web API allows clients to "teach" the animalia service about animals, their characteristcs and relationships and to then ask the animalia service questions about animals. The interaction with the service uses a constrained form of natural language. 
 
-You will use an external service called [wit.ai](http://wit.ai/) to parse natural language input to the API implementation. We have trainined an instance of [wit.ai](http://wit.ai/) to help you with this task. We have also provided you with a set of training data that you can use to teach your implementation about the domain of animals. 
+You will use an external service called [wit.ai][wit] to parse natural language input to the API implementation. We have trainined an instance of [wit.ai][wit] to help you with this task. We have also provided you with a set of training data that you can use to teach your implementation about the domain of animals. 
 
-Your job is to write an implementation that satisfies the API specification and verify your implementation. You may use any implementation language you prefer provided we can run your submission on our hardware. Your submission must include instructions for how to run your submission, including whatever preliminary steps are required to set up the build and runtime environments on our computers.  We use Macs with the latest OSX, so you can assume that environment or a comparable enviroment like a modern Linux distribution. Unfortunately we cannot support submissions that require Microsoft Windows to run.
+[wit]: http://wit.ai/
 
 # Submitting your Implementation
 
-If are are reading this then you already have a github account. In your github account create a repository for your submission. Include a README.md, just like the file you are currently reading, to describe how to run and test your solution. To submit your implementation send us a link to your solution, or add us as collaborators if your solution repository is private.
+We expect two deliverables in your submission.
+
+1. The source code.
+2. A deployed service OR thorough instructions for building and running the service on a modern Mac laptop.
+
+Your job is to write an implementation that satisfies the API specification and verify your implementation. You may use any implementation language you prefer.
+
+### Submitting source code
+
+To submit the source code, the easiest way is to share a private Github or BitBucket repository with us (we will send you the appropriate usernames). Alternatively, we can accept compressed tarballs or zip archives. We cannot accept those over email, though, so we recommend a file sharing service like Google Drive, Dropbox, or similar.
+
+### Deployed service
+
+It is easiest for us to evaluate the implementation if you deploy it somewhere. If you haven't done this before, [Heroku][heroku], [Google AppEngine][gae], [OpenShift][openshift], [Azure][azure], and similar services provide easy ways to deploy web services to the cloud often with free tiers. You can then send us a link to your deployed app.
+
+If you are uncomfortable deploying your app, we will accept thorough instructions on how to setup and run your service as an alternative. We are experienced developers, but we may not be familiar with the tools or languages you used, so please draft the instructions accordingly.
+
+[heroku]: https://heroku.com/
+[gae]: https://cloud.google.com/appengine/docs
+[openshift]: https://www.openshift.com/
+[azure]: https://azure.microsoft.com/en-us/
 
 # Assessment and Interview
 
@@ -149,9 +169,9 @@ The responses are simple yes or no, numbers or lists. The responses do not need 
 * Does a bear have scales? no
 * Do mammals live in the ocean? yes
 
-# Use of [wit.ai](http://wit.ai/)
+# Use of [wit.ai][wit]
 
-A succesful implementation will make use of [wit.ai](http://wit.ai/) to parse the training sentences and extract the parts required to populated the service's collection of facts so it can later answer questions. We have provided a trained [wit.ai](http://wit.ai/) application for you to use in your application.  The trained [wit.ai](http://wit.ai/) instance will allow you to identify the intent of questions and of fact statements along with the features or entities in statements, including animals, semantic relationships and features.  You can use an existing [wit.ai](http://wit.ai/) integration library or use their HTTP API directly. Be sure to handle error cases in your [wit.ai](http://wit.ai/) integration as a part of your implementation.
+A succesful implementation will make use of [wit.ai][wit] to parse the training sentences and extract the parts required to populated the service's collection of facts so it can later answer questions. We have provided a trained [wit.ai][wit] application for you to use in your application.  The trained [wit.ai][wit] instance will allow you to identify the intent of questions and of fact statements along with the features or entities in statements, including animals, semantic relationships and features.  You can use an existing [wit.ai][wit] integration library or use their HTTP API directly. Be sure to handle error cases in your [wit.ai][wit] integration as a part of your implementation.
 
 The wit API Key to use is `JZKCMFUAZKZ5FQZT3JXEZVJM2XVNNPXI` the app id is: `56300313-4dfd-4da3-a74d-2ae701d1cfbb`. The wit API key we provide will allow you to use a wit integration library or an integration your write yourself to extract the intents and entities on which we have trained so you can understand more about the set of possible values.
 
