@@ -192,3 +192,10 @@ Provided in this repo is a bash script, [check_animalia.bash](check_animalia.bas
 ```bash
 bash check_animalia.bash
 ```
+
+If your service is running somewhere other than http://localhost:8080, specify `ANIMALIA_BASE_URL` in the environment. For example, if your service is running on port 3000:
+
+```bash
+export ANIMALIA_BASE_URL=http://localhost:3000
+bash check_animalia.bash
+```

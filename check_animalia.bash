@@ -4,6 +4,8 @@
 # expected. If everything works as expected, not output is shown. If there are
 # issues, they are printed to stdout.
 #
+# Known to work with modern bash (>=4) and curl (>=7.18.0).
+#
 # Environment variables:
 #
 #   ANIMALIA_BASE_URL  Base url of the animalia service to test. Defaults to http://localhost:8080
@@ -55,6 +57,7 @@ function query() {
     parse_field fact $response
 }
 
+# Count and report errors.
 ERROR_COUNT=0
 function report() {
     if [ "${ERROR_COUNT}" = "0" ] ; then
@@ -65,6 +68,7 @@ function report() {
 }
 trap report EXIT
 
+# Provide some assert utility functions.
 function assert_equal() {
     local actual=$1
     local expected=$2
