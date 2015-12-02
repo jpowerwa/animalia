@@ -181,6 +181,14 @@ The wit API Key to use is `JZKCMFUAZKZ5FQZT3JXEZVJM2XVNNPXI` the app id is: `563
 
 Our training of wit is not perfect. If you find that there are query or fact intents that we have not covered in our training let us know via e-mail. We will do our best to annotate the examples you sent to wit that have failed. Wit will record all of the facts questions you send to it, so we can find any queries that failed to parse and annotate them.
 
-## Expectations
+# Expectations
 
 There are lots of intents defined in wit. We do not expect your solution to support all of them. We expect you to be able to talk about how you would support additional intents, however.
+
+# Checking your solution
+
+Provided in this repo is a bash script, [check_animalia.bash](check_animalia.bash), that uses curl to make a few requests against your service. It is by no means exhaustive. It is a sanity check for you to make sure your solution has minimal functionality. To use the script:
+
+```bash
+bash check_animalia.bash
+```
