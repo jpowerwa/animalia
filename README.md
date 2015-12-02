@@ -30,6 +30,10 @@ If you are uncomfortable deploying your app, we will accept thorough instruction
 [openshift]: https://www.openshift.com/
 [azure]: https://azure.microsoft.com/en-us/
 
+### External Services and Libraries
+
+Feel free to use whatever external services and libraries you feel are best suited to solve the problem. It is not neccessary to write the code for your solution from the ground up. You can use databases, utility libraries, or external web services as you see fit. 
+
 # Assessment and Interview
 
 After we receive your submission we will conduct a code review and execute our suite of integration tests that assert the correctness of the API. Through the course of our review and testing we will assess your implementation on several different critiera:
@@ -176,13 +180,4 @@ A succesful implementation will make use of [wit.ai][wit] to parse the training 
 The wit API Key to use is `JZKCMFUAZKZ5FQZT3JXEZVJM2XVNNPXI` the app id is: `56300313-4dfd-4da3-a74d-2ae701d1cfbb`. The wit API key we provide will allow you to use a wit integration library or an integration your write yourself to extract the intents and entities on which we have trained so you can understand more about the set of possible values.
 
 Our training of wit is not perfect. If you find that there are query or fact intents that we have not covered in our training let us know via e-mail. We will do our best to annotate the examples you sent to wit that have failed. Wit will record all of the facts questions you send to it, so we can find any queries that failed to parse and annotate them.
-
-# Runtime Requirements
-
-Your implementation needs to run as a HTTP Service on the local machine. You should configure your service so that it will listen on localhost on port 8080 by default. Your submission must include clear instructions on how to setup the runtime environment and succesfully run your service. We therefore suggest using either self contained projects or relying on frameworks that have automated package manaagement for retrieving dependencies.
-
-# External Services and Libraries
-
-Feel free to use whatever external services and libraries you feel are best suited to solve the problem. It is not neccessary to write the code for your solution from the ground up. You can use databases, utility libraries, or external web services as you see fit. 
-
 
