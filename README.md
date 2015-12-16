@@ -92,7 +92,7 @@ If a fact with the specified id is known to the service it is returned with a 20
  "fact": "the otter lives in rivers"
 }`
 
-IF a fact with the specified id is not present then the response will have a 404 status code and response body will be empty.
+If a fact with the specified id is not present then the response will have a 404 status code and response body will be empty.
 
 Individual facts can also be deleted. To delete a fact the client can issue an HTTP DELETE and specify the GUID of the fact to delete like this:
 
