@@ -1,8 +1,8 @@
 # animalia
 
-Welcome to animalia, Rafa's at-home interview question. The purpose of this exercise is for you to demonstrate your software development competency by implementing a web API that we will specify below. The animalia web API allows clients to "teach" the animalia service about animals, their characteristcs and relationships and to then ask the animalia service questions about animals. The interaction with the service uses a constrained form of natural language.
+Welcome to animalia, Rafa's at-home interview question. The purpose of this exercise is for you to demonstrate your software development competency by implementing a web API that we will specify below. The animalia web API allows clients to "teach" the animalia service about animals, their characteristics and relationships and to then ask the animalia service questions about animals. The interaction with the service uses a constrained form of natural language.
 
-You will use an external service called [wit.ai][wit] to parse natural language input to the API implementation. We have trainined an instance of [wit.ai][wit] to help you with this task. We have also provided you with a set of training data that you can use to teach your implementation about the domain of animals.
+You will use an external service called [wit.ai][wit] to parse natural language input to the API implementation. We have trained an instance of [wit.ai][wit] to help you with this task. We have also provided you with a set of training data that you can use to teach your implementation about the domain of animals.
 
 [wit]: http://wit.ai/
 
@@ -32,13 +32,13 @@ If you are uncomfortable deploying your app, we will accept thorough instruction
 
 ### External Services and Libraries
 
-Feel free to use whatever external services and libraries you feel are best suited to solve the problem. It is not neccessary to write the code for your solution from the ground up. You can use databases, utility libraries, or external web services as you see fit.
+Feel free to use whatever external services and libraries you feel are best suited to solve the problem. It is not necessary to write the code for your solution from the ground up. You can use databases, utility libraries, or external web services as you see fit.
 
 # Assessment and Interview
 
-After we receive your submission we will conduct a code review and execute our suite of integration tests that assert the correctness of the API. Through the course of our review and testing we will assess your implementation on several different critiera:
+After we receive your submission we will conduct a code review and execute our suite of integration tests that assert the correctness of the API. Through the course of our review and testing we will assess your implementation on several different criteria:
 
-* _Correctness:_ Does your API adhere to the specification and does it return correct or otherwise reaosnable results through the course of training and querying?
+* _Correctness:_ Does your API adhere to the specification and does it return correct or otherwise reasonable results through the course of training and querying?
 * _Robustness:_ Does your implementation handle malformed, edge case, or fuzzed input without failing and while returning meaningful messages on the cause of the failure?
 * _Readability:_ Can an engineer unfamiliar with your implementation read and understand what you wrote with sufficient depth to make modifications? This criteria speaks to style, naming conventions, organization, and comments.
 * _Scalability:_ If we were to scale the training data from its current form to 10s of thousands of animal concepts will your implementation be able to support the larger number of concepts without become unusably slow or otherwise broken.
@@ -61,14 +61,14 @@ Training is done by submitting a HTTP POST to the to the /animals/facts resource
  "fact": "the otter lives in rivers"
 }`    
 
-If the POST completed succesfully the API will return a HTTP 200 status code with a JSON formatted body that contains an identifier for the newly created fact. The response document will look like this:
+If the POST completed successfully the API will return a HTTP 200 status code with a JSON formatted body that contains an identifier for the newly created fact. The response document will look like this:
 
 
  `{
  "id": "0b3431e3-2351-46f1-ad90-fa022a60ba15"
 }`
 
-The id is a globaly unique identifier (GUID).
+The id is a globally unique identifier (GUID).
 
 You can submit the exact same sentence repeatedly and the service will be trained in the exact same way as a result and will return the exact same identifier.
 
@@ -80,7 +80,7 @@ Sentences that cannot be parsed by the service because they do not follow the ex
 
 ## Fact Management API
 
-Individidual facts can be retrieved using an HTTP GET on the '/animals/facts/' resource using the GUID to specify the target fact:
+Individual facts can be retrieved using an HTTP GET on the '/animals/facts/' resource using the GUID to specify the target fact:
 
 `
 GET /animals/facts/0b3431e3-2351-46f1-ad90-fa022a60ba15  HTTP/1.1
@@ -90,7 +90,7 @@ If a fact with the specified id is known to the service it is returned with a 20
 
  `{
  "fact": "the otter lives in rivers"
-}` 
+}`
 
 IF a fact with the specified id is not present then the response will have a 404 status code and response body will be empty.
 
@@ -106,9 +106,9 @@ If a fact with the specified GUID exists then it will be deleted and the respons
  "id": "0b3431e3-2351-46f1-ad90-fa022a60ba15"
 }`
 
-If a fact with the specifeid GUID could not be found then the service will return a response with a 404 status code and no response body.
+If a fact with the specified GUID could not be found then the service will return a response with a 404 status code and no response body.
 
-When a fact is deleted then the information it represents about animals is no longer available to the service and the servie must stop answering questions with information from the fact.
+When a fact is deleted then the information it represents about animals is no longer available to the service and the service must stop answering questions with information from the fact.
 
 ## Query API
 
@@ -131,7 +131,7 @@ The service will respond with a 200 status code and the same JSON body as is use
  "fact": "rivers"
 }`
 
-If the API cannot find information that is related to the query, it will return a 404 status code and a slighlty different JSON body:
+If the API cannot find information that is related to the query, it will return a 404 status code and a slightly different JSON body:
 
 `{
  "message": "I can't answer your question."
@@ -175,7 +175,7 @@ The responses are simple yes or no, numbers or lists. The responses do not need 
 
 # Use of [wit.ai][wit]
 
-A succesful implementation will make use of [wit.ai][wit] to parse the training sentences and extract the parts required to populated the service's collection of facts so it can later answer questions. We have provided a trained [wit.ai][wit] application for you to use in your application. The trained [wit.ai][wit] instance will allow you to identify the intent of questions and of fact statements along with the features or entities in statements, including animals, semantic relationships and features. You can use an existing [wit.ai][wit] integration library or use their HTTP API directly. Be sure to handle error cases in your [wit.ai][wit] integration as a part of your implementation.
+A successful implementation will make use of [wit.ai][wit] to parse the training sentences and extract the parts required to populated the service's collection of facts so it can later answer questions. We have provided a trained [wit.ai][wit] application for you to use in your application. The trained [wit.ai][wit] instance will allow you to identify the intent of questions and of fact statements along with the features or entities in statements, including animals, semantic relationships and features. You can use an existing [wit.ai][wit] integration library or use their HTTP API directly. Be sure to handle error cases in your [wit.ai][wit] integration as a part of your implementation.
 
 The wit API Key to use is `JZKCMFUAZKZ5FQZT3JXEZVJM2XVNNPXI` the app id is: `56300313-4dfd-4da3-a74d-2ae701d1cfbb`. The wit API key we provide will allow you to use a wit integration library or an integration your write yourself to extract the intents and entities on which we have trained so you can understand more about the set of possible values.
 
