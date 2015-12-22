@@ -1,0 +1,8 @@
+mkvirtualenv /ws/projects/animalia
+fork rafastealth/animalia repo
+checkout jpowerwa/animalia repo
+pip install flask, flask-mysql
+app/app.py
+app/templates
+app/static
+
