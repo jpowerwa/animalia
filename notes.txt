@@ -1,8 +1,45 @@
+day 0
+read assignment and poke around a bit looking at APIs, cloud solutions, etc.
+
+day 1
+goal: get working dummy flask app
 mkvirtualenv /ws/projects/animalia
 fork rafastealth/animalia repo
 checkout jpowerwa/animalia repo
-pip install flask, flask-mysql
-app/app.py
-app/templates
-app/static
+> pip install flask, flask-mysql
+src/app.py
+src/templates/*.html
+src/static/*.css
+
+day 2
+goal: get request/response end-to-end locally, including ORM layer
+convert dummy flask app to use JSON request
+read wit.ai docs. I don't get it.
+
+day 3
+goal: figure out wit.ai
+start playing with wit.ai by creating test app. I sort of get it.
+documentation at wit.ai is very confusing. This page is the most helpful that I have found so far: https://wit.ai/docs/console/complete-guide
+> sudo apt-get install libsox-dev
+> pip install wit
+Helped to write driver script submitting queries to trained app using wit.text_query method.
+Studied training data; very informative in determining data model for animal facts.
+To consider: 
+Q: Should application attempt to handle new kinds of relationships from wit? 
+Q: What is the simplest interesting set of functionality that I can build?
+
+day 4
+goal: end-to-end naive implementation of Add Fact API
+pip install flask-sqlalchemy
+Got Concept and ConceptType declarative classes working with relationship.
+
+
+
+points of confusion
+1. wit.ai: hard to find description of its general model; confusing that demo emphasis is on voice; would be nice to see set of intents defined in trained wit application.
+2. animalia_data.csv: what is this for? To use to generate sentences to submit to my implementation of the animal fact api? To seed the database? Looks like a dump of a database used by the animalia app. Confusing but informative: insect is listed as species but in data it is food and species. Ended up being a great resource for determining the animalia data model. Example shows "bear" included in answer to "Which animals eat mammals, but this is not represented in the training data."
+3: If set_animal_fact is called with sentence that results in same fact as another sentence, return new id or original fact id? A: original fact id. Note: be careful when deleting facts. If any submitted fact is still around, do not delete data.
+
+
+
 
