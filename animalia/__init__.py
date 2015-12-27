@@ -7,6 +7,7 @@
 from __future__ import unicode_literals
 
 import json
+import uuid
 
 import flask
 
@@ -28,14 +29,23 @@ def show_signup():
 @app.route('/signup', methods=['POST'])
 def signup():
     req_data = flask.request.json
-    concept_name = req_data.get('username')
+    subj_concept = req_data.get('username')
+    obj_concept = req_data.get('email')
     response_data = {}
-    if not concept_name:
-        response_data = {'html':'<span>No concept name provided</span>'}
+    if not (subj_concept and obj_concept):
+        response_data = {'html':'<span>Subject and object are required</span>'}
     else:
         try:
-            concept = Concept(concept_name=concept_name)
-            concept.concept_types.append(ConceptType(concept_type_name='fruit'))
+            concept_type = ConceptType.select_by_name(obj_concept)
+            if not concept_type:
+                concept_type = ConceptType(concept_type_name=obj_concept,
+                                           concept_type_id=str(uuid.uuid4()))
+                concept_type.save()
+            concept = Concept.select_by_name(subj_concept)
+            if not concept:
+                concept = Concept(concept_name=subj_concept,
+                                  concept_id=str(uuid.uuid4()))
+            concept.concept_types.append(concept_type)
             concept.save()
             response_data = {'message': 'Concept {0} added'.format(concept.concept_id)}
         except Exception as ex:
