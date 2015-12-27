@@ -32,21 +32,12 @@
         <h1>Bucket List App</h1>
         <form class="form-signin">
         <label for="input_name" class="sr-only">Name</label>
-        <input type="name" name="input_name" id="input_name" class="form-control" placeholder="Name" required autofocus>
+        <input type="name" name="username" id="input_username" class="form-control" placeholder="Name" required autofocus>
         <label for="input_email" class="sr-only">Email address</label>
-        <input type="email" name="input_email" id="input_email" class="form-control" placeholder="Email address" required autofocus>
-        <label for="input_password" class="sr-only">Password</label>
-        <input type="password" name="input_password" id="input_password" class="form-control" placeholder="Password" required>
-         
+        <input type="email" name="email" id="input_email" class="form-control" placeholder="Email address" required autofocus>
         <button id="btn_signup" class="btn btn-lg btn-primary btn-block" type="button">Sign up</button>
       </form>
       </div>
- 
-       
- 
-      <footer class="footer">
-        <p>&copy; Company 2015</p>
-      </footer>
  
     </div>
   </body>
@@ -56,13 +47,19 @@
 
 $(function() {
     $('#btn_signup').click(function() {
- 
+
+        var req_data = {};
+        $.each($('form').serializeArray(), function (i, input) {
+            req_data[input.name] = input.value;
+        });
+        
         $.ajax({
-            url: '/signup',
-            data: $('form').serialize(),
             type: 'POST',
-            success: function(response) {
-                console.log(response);
+            url: '/signup',
+            data: JSON.stringify(req_data),
+            contentType: 'application/json, charset=utf-8',
+            success: function(data) {
+                console.log(data);
             },
             error: function(error) {
                 console.log(error);
