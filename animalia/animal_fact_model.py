@@ -10,46 +10,59 @@ import uuid
 
 from flask_sqlalchemy import SQLAlchemy
 import sqlalchemy as sa
-from sqlalchemy_utils import UUIDType
+import sqlalchemy.orm as sa_orm
+import sqlalchemy.types as sa_types
 
-# local 
 from animalia import app
 from config import Config
 
 __all__ = ('Concept',
-           'ConceptType'
+           'IncomingFacts',
+#           'Relationship'
            )
 
 app.config['SQLALCHEMY_DATABASE_URI'] = Config.db_connection
 db = SQLAlchemy(app)
 
-class AnimalFactModel(object):
-    def ensure_id(self, id_val):
-        return id_val or str(uuid.uuid4())
+class UUIDType(sa_types.TypeDecorator):
+    """
+    http://docs.sqlalchemy.org/en/latest/core/custom_types.html#backend-agnostic-guid-type
+    """
+    impl = sa_types.CHAR
 
+    def process_bind_param(self, value, dialect):
+        if value:
+            value = str(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        return uuid.UUID(hex=value)
+
+    @staticmethod
+    def new_uuid():
+        return str(uuid.uuid4())
+
+
+class AnimalFactModel(object):
     def save(self):
-#        db.session.add(self)
-        db.session.merge(self)
+        saved = db.session.merge(self)
         db.session.commit()
+        return saved
 
 
 concept_to_concept_types = db.Table(
     'concept_to_concept_type',
-    db.Column('concept_id', db.String(36), db.ForeignKey('concepts.concept_id')),
-    db.Column('concept_type_id', db.String(36), db.ForeignKey('concept_types.concept_type_id')))
+    sa.Column('concept_id', sa.String(36), sa.ForeignKey('concepts.concept_id')),
+    sa.Column('concept_type_id', sa.String(36), sa.ForeignKey('concept_types.concept_type_id')))
 
 class Concept(db.Model, AnimalFactModel):
     __tablename__ = 'concepts'
-#    concept_id = db.Column(db.String(36), primary_key=True)
-    concept_id = sa.Column(UUIDType(binary=False), primary_key=True)
-    concept_name = db.Column(db.String(255), unique=True)
-    concept_types = db.relationship('ConceptType', 
-                                    secondary=concept_to_concept_types,
-                                    backref=db.backref('concepts', lazy='dynamic'))
+    concept_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
+    concept_name = sa.Column(sa.String(255), unique=True)
+    concept_types = sa_orm.relationship('ConceptType', 
+                                        secondary=concept_to_concept_types,
+                                        backref=sa_orm.backref('concepts', lazy='dynamic'))
 
-    # def __init__(self, concept_id=None, **kwargs):
-    #     self.concept_id = self.ensure_id(concept_id)
-    #     super(Concept, self).__init__(**kwargs)
 
     @classmethod
     def select_by_name(cls, name):
@@ -58,16 +71,54 @@ class Concept(db.Model, AnimalFactModel):
 
 class ConceptType(db.Model, AnimalFactModel):
     __tablename__ = 'concept_types'
-#    concept_type_id = db.Column(db.String(36), primary_key=True)
-    concept_type_id = sa.Column(UUIDType(binary=False), primary_key=True)
-    concept_type_name = db.Column(db.String(255), unique=True)
-
-    # def __init__(self, concept_type_id=None, **kwargs):
-    #     self.concept_type_id = self.ensure_id(concept_type_id)
-    #     super(ConceptType, self).__init__(**kwargs)
+    concept_type_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
+    concept_type_name = sa.Column(sa.String(255), unique=True)
 
     @classmethod
     def select_by_name(cls, name):
         return db.session.query(ConceptType).filter_by(concept_type_name=name).first()
+
+
+class RelationshipType(db.Model):
+    __tablename__ = 'relationship_types'
+    relationship_type_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
+    # subject_type_id = sa.Column(UUIDType())
+    # object_type_id = sa.Column(UUIDType())
+
+class RelationshipTypeName(db.Model):
+    __tablename__ = 'relationship_type_names'
+    __table_args__ = (
+        sa.ForeignKeyConstraint(['relationship_type_id'], [RelationshipType.relationship_type_id]),
+        )
+    relationship_type_name = sa.Column(sa.String(45), primary_key=True)
+    relationship_type_id = sa.Column(UUIDType())
+
+RelationshipType.names = sa_orm.relationship(RelationshipTypeName, 
+                                         backref='RelationshipType', 
+                                         lazy='dynamic')
+
+class Relationship(db.Model):
+    __tablename__ = 'relationships'
+    __table_args__ = (
+        sa.ForeignKeyConstraint(['relationship_type_id'], [RelationshipType.relationship_type_id]),
+        sa.ForeignKeyConstraint(['subject_id'], [Concept.concept_id]),
+        sa.ForeignKeyConstraint(['object_id'], [Concept.concept_id])
+        )
+    relationship_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
+    relationship_type_id = sa.Column(UUIDType())
+    subject_id = sa.Column(UUIDType())
+    object_id = sa.Column(UUIDType())
+    count = sa.Column(sa.Integer, default=None)
+    fact_id = sa.Column(UUIDType())
+
+Relationship.relationship_type = sa_orm.relationship(RelationshipType,
+#                                                 backref='Relationship',
+                                                 lazy=False)
+
+class IncomingFact(db.Model):
+    __tablename__ = 'incoming_facts'
+    fact_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
+    fact_text = sa.Column(sa.String(255), unique=True)
+    deleted = sa.Column(sa.Boolean, default=False)
 
 

@@ -38,16 +38,17 @@ def signup():
         try:
             concept_type = ConceptType.select_by_name(obj_concept)
             if not concept_type:
-                concept_type = ConceptType(concept_type_name=obj_concept,
-                                           concept_type_id=str(uuid.uuid4()))
-                concept_type.save()
+                concept_type = ConceptType(concept_type_name=obj_concept)
+#                concept_type = concept_type.save()
+            # print("\nCONCEPT_TYPE: {0}, {1}".format(concept_type.concept_type_id,
+            #                                         concept_type.concept_type_name))
             concept = Concept.select_by_name(subj_concept)
             if not concept:
-                concept = Concept(concept_name=subj_concept,
-                                  concept_id=str(uuid.uuid4()))
+                concept = Concept(concept_name=subj_concept)
             concept.concept_types.append(concept_type)
             concept.save()
-            response_data = {'message': 'Concept {0} added'.format(concept.concept_id)}
+            response_data = {'message': 'Concept {0} added as type {1}'.format(
+                    concept.concept_name, concept_type.concept_type_name)}
         except Exception as ex:
             response_data = {'error': str(ex)}
         return json.dumps(response_data)

@@ -25,10 +25,11 @@ DROP TABLE IF EXISTS `concept_to_concept_type`;
 CREATE TABLE `concept_to_concept_type` (
   `concept_id` char(36) NOT NULL,
   `concept_type_id` char(36) NOT NULL,
-  PRIMARY KEY (`concept_id`,`concept_type_id`),
-  KEY `fk_concept_to_concept_type_concept_type_id_idx` (`concept_type_id`),
-  CONSTRAINT `fk_concept_to_concept_type__concept_id` FOREIGN KEY (`concept_id`) REFERENCES `concepts` (`concept_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_concept_to_concept_type__concept_type_id` FOREIGN KEY (`concept_type_id`) REFERENCES `concept_types` (`concept_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  PRIMARY KEY (`concept_id`,`concept_type_id`)
+  -- KEY `fk_concept_to_concept_type_concept_type_id_idx` (`concept_type_id`),
+  -- CONSTRAINT `fk_concept_to_concept_type__concept_id` FOREIGN KEY (`concept_id`) REFERENCES `concepts` (`concept_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  -- CONSTRAINT `fk_concept_to_concept_type__concept_type_id` FOREIGN KEY (`concept_type_id`) REFERENCES `concept_types` (`concept_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -73,7 +74,7 @@ CREATE TABLE `incoming_facts` (
   `fact_id` char(36) NOT NULL,
   `fact_text` varchar(255) NOT NULL,
   `creation_date_utc` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `deleted` binary(1) NOT NULL DEFAULT '0',
+  `deleted` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`fact_id`),
   UNIQUE KEY `fact_text_UNIQUE` (`fact_text`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -87,11 +88,10 @@ DROP TABLE IF EXISTS `relationship_type_names`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `relationship_type_names` (
-  `relationship_type_id` char(36) NOT NULL,
   `relationship_type_name` varchar(45) NOT NULL,
-  PRIMARY KEY (`relationship_type_id`),
-  UNIQUE KEY `relationship_type_name_UNIQUE` (`relationship_type_name`),
-  CONSTRAINT `fk_relationship_type_names__relationship_type_id` FOREIGN KEY (`relationship_type_id`) REFERENCES `relationship_types` (`relationship_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `relationship_type_id` char(36) NOT NULL,
+  PRIMARY KEY (`relationship_type_name`)
+--  CONSTRAINT `fk_relationship_type_names__relationship_type_id` FOREIGN KEY (`relationship_type_id`) REFERENCES `relationship_types` (`relationship_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -106,11 +106,11 @@ CREATE TABLE `relationship_types` (
   `relationship_type_id` char(36) NOT NULL,
   `subject_type_id` char(36) NOT NULL,
   `object_type_id` char(36) NOT NULL,
-  PRIMARY KEY (`relationship_type_id`),
-  KEY `fk_relationship_types_subject_id_idx` (`subject_type_id`),
-  KEY `fk_relationship_types_object_id_idx` (`object_type_id`),
-  CONSTRAINT `fk_relationship_types_object_id` FOREIGN KEY (`object_type_id`) REFERENCES `concepts` (`concept_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk_relationship_types_subject_id` FOREIGN KEY (`subject_type_id`) REFERENCES `concepts` (`concept_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  PRIMARY KEY (`relationship_type_id`)
+--   KEY `fk_relationship_types_subject_id_idx` (`subject_type_id`),
+--   KEY `fk_relationship_types_object_id_idx` (`object_type_id`),
+--   CONSTRAINT `fk_relationship_types_object_id` FOREIGN KEY (`object_type_id`) REFERENCES `concepts` (`concept_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+--   CONSTRAINT `fk_relationship_types_subject_id` FOREIGN KEY (`subject_type_id`) REFERENCES `concepts` (`concept_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -128,9 +128,9 @@ CREATE TABLE `relationships` (
   `object_id` char(36) NOT NULL,
   `count` int(11) DEFAULT NULL,
   `fact_id` char(36) DEFAULT NULL,
-  PRIMARY KEY (`relationship_id`),
-  KEY `fk_relationships_relationship_type_id_idx` (`relationship_type_id`),
-  CONSTRAINT `fk_relationships__relationship_type_id` FOREIGN KEY (`relationship_type_id`) REFERENCES `relationship_types` (`relationship_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  PRIMARY KEY (`relationship_id`)
+--   KEY `fk_relationships_relationship_type_id_idx` (`relationship_type_id`),
+--   CONSTRAINT `fk_relationships__relationship_type_id` FOREIGN KEY (`relationship_type_id`) REFERENCES `relationship_types` (`relationship_type_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
