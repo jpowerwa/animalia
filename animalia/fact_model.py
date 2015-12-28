@@ -17,7 +17,7 @@ from animalia import app
 from config import Config
 
 __all__ = ('Concept',
-           'IncomingFacts',
+           'IncomingFact',
 #           'Relationship'
            )
 
@@ -43,7 +43,7 @@ class UUIDType(sa_types.TypeDecorator):
         return str(uuid.uuid4())
 
 
-class AnimalFactModel(object):
+class FactModel():
     def save(self):
         saved = db.session.merge(self)
         db.session.commit()
@@ -55,7 +55,7 @@ concept_to_concept_types = db.Table(
     sa.Column('concept_id', sa.String(36), sa.ForeignKey('concepts.concept_id')),
     sa.Column('concept_type_id', sa.String(36), sa.ForeignKey('concept_types.concept_type_id')))
 
-class Concept(db.Model, AnimalFactModel):
+class Concept(db.Model, FactModel):
     __tablename__ = 'concepts'
     concept_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
     concept_name = sa.Column(sa.String(255), unique=True)
@@ -66,17 +66,17 @@ class Concept(db.Model, AnimalFactModel):
 
     @classmethod
     def select_by_name(cls, name):
-        return db.session.query(Concept).filter_by(concept_name=name).first()
+        return db.session.query(cls).filter_by(concept_name=name).first()
 
 
-class ConceptType(db.Model, AnimalFactModel):
+class ConceptType(db.Model):
     __tablename__ = 'concept_types'
     concept_type_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
     concept_type_name = sa.Column(sa.String(255), unique=True)
 
     @classmethod
     def select_by_name(cls, name):
-        return db.session.query(ConceptType).filter_by(concept_type_name=name).first()
+        return db.session.query(cls).filter_by(concept_type_name=name).first()
 
 
 class RelationshipType(db.Model):
@@ -115,10 +115,12 @@ Relationship.relationship_type = sa_orm.relationship(RelationshipType,
 #                                                 backref='Relationship',
                                                  lazy=False)
 
-class IncomingFact(db.Model):
+class IncomingFact(db.Model, FactModel):
     __tablename__ = 'incoming_facts'
     fact_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
     fact_text = sa.Column(sa.String(255), unique=True)
     deleted = sa.Column(sa.Boolean, default=False)
 
-
+    @classmethod
+    def select_by_text(cls, text):
+        return db.session.query(cls).filter_by(fact_text=text).first()

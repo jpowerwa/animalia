@@ -15,7 +15,8 @@ import flask
 app = flask.Flask(__name__)
 
 # Initialize db connection and orm
-from animal_fact_model import db, Concept, ConceptType
+from fact_model import db, Concept, ConceptType
+from fact import Fact
 
 
 @app.route("/")
@@ -39,9 +40,6 @@ def signup():
             concept_type = ConceptType.select_by_name(obj_concept)
             if not concept_type:
                 concept_type = ConceptType(concept_type_name=obj_concept)
-#                concept_type = concept_type.save()
-            # print("\nCONCEPT_TYPE: {0}, {1}".format(concept_type.concept_type_id,
-            #                                         concept_type.concept_type_name))
             concept = Concept.select_by_name(subj_concept)
             if not concept:
                 concept = Concept(concept_name=subj_concept)
@@ -52,4 +50,16 @@ def signup():
         except Exception as ex:
             response_data = {'error': str(ex)}
         return json.dumps(response_data)
+
+@app.route('/animal/fact', methods=['POST'])
+def post_fact():
+    req_data = flask.request.json
+    fact_sentence = req_data.get('fact')
+    response_data = {}
+    if not fact_sentence:
+        response_data = {'html':'<span>Fact sentence is required</span>'}
+    else:
+        fact = Fact.from_sentence(fact_sentence)
+        response_data = {'id': str(fact.fact_id)}
+    return json.dumps(response_data)
 
