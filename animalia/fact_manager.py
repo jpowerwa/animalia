@@ -10,7 +10,9 @@ import fact_model
 
 class FactManager(object):
 
-    def ParseError(Exception):
+    class ParseError(Exception):
+        """Exception to raise if user-supplied fact sentence cannot be parsed.
+        """
         pass
     
 
