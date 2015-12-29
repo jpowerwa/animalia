@@ -122,5 +122,9 @@ class IncomingFact(db.Model, FactModel):
     deleted = sa.Column(sa.Boolean, default=False)
 
     @classmethod
+    def select_by_id(cls, fact_id):
+        return db.session.query(cls).get(fact_id)
+
+    @classmethod
     def select_by_text(cls, text):
         return db.session.query(cls).filter_by(fact_text=text).first()

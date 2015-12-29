@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 
 import fact_model
 
-class Fact(object):
+class FactManager(object):
 
     def ParseError(Exception):
         pass
@@ -32,7 +32,7 @@ class Fact(object):
         pass
 
     @classmethod
-    def from_sentence(cls, sentence):
+    def fact_from_sentence(cls, sentence):
         """Factory method to create Fact from sentence.
 
         :rtype: :py:class:`Fact`
@@ -49,11 +49,7 @@ class Fact(object):
         return incoming_fact
 
     @classmethod
-    def _normalize_sentence(cls, sentence):
-        return sentence.lower()
-
-    @classmethod
-    def get_by_id(cls, fact_id):
+    def get_fact_by_id(cls, fact_id):
         """Retrieve specified Fact by id.
 
         :rtype: :py:class:`Fact`
@@ -63,38 +59,20 @@ class Fact(object):
         :arg fact_id: id of persisted Fact
 
         """
-        return None
+        return fact_model.IncomingFact.select_by_id(fact_id)
+
 
     @classmethod
-    def get_by_sentence(cls, sentence):
-        """Retrieve specified Fact by sentence
-
-        :rtype: :py:class:`Fact`
-        :return: retrieved Fact or None if no matching fact exists
-
-        :type sentence: unicode
-        :arg sentence: sentence of persisted Fact
-
-        """
-        return None
-
-
-    # instance methods
-
-    def delete(self):
+    def delete(cls, fact_id):
         """Delete persisted data corresponding to this Fact.
         """
         pass
 
-    def save(self):
-        """Save member data as persisted Fact.
+    @classmethod
+    def _normalize_sentence(cls, sentence):
+        return sentence.lower()
 
-        :rtype: Fact
-        :return: new instance of Fact that corresponds to persisted data
 
-        """
-        pass
-        
         
 
     
