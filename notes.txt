@@ -31,15 +31,21 @@ Q: What is the simplest interesting set of functionality that I can build?
 day 4
 goal: end-to-end naive implementation of Add Fact API
 pip install flask-sqlalchemy
-Got Concept and ConceptType declarative classes working with relationship.
+Got some SQLAlchemy classes working and connected to db
+* significant work in getting orm layer set up
 
+day 5
+goal: same as above
+
+day 6
+goal: same as above
+pip install flask-api
+unittests for flask endpoints
 
 
 points of confusion
 1. wit.ai: hard to find description of its general model; confusing that demo emphasis is on voice; would be nice to see set of intents defined in trained wit application.
 2. animalia_data.csv: what is this for? To use to generate sentences to submit to my implementation of the animal fact api? To seed the database? Looks like a dump of a database used by the animalia app. Confusing but informative: insect is listed as species but in data it is food and species. Ended up being a great resource for determining the animalia data model. Example shows "bear" included in answer to "Which animals eat mammals, but this is not represented in the training data."
 3: If set_animal_fact is called with sentence that results in same fact as another sentence, return new id or original fact id? A: original fact id. Note: be careful when deleting facts. If any submitted fact is still around, do not delete data.
-
-
 
 
