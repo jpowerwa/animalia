@@ -22,7 +22,7 @@ class FactManager(object):
 
 
     class ParseError(Exception):
-        """Exception to raise if user-supplied fact sentence cannot be parsed.
+        """To raise if user-supplied fact sentence cannot be parsed or if parsed data is invalid.
         """
         pass
 
@@ -130,7 +130,8 @@ class FactManager(object):
     def _save_parsed_fact(cls, parsed_data=None):
         """Persist IncomingFact and related ORM objects created from provided parsed_data.
 
-        Do not commit.
+        Do not commit db session.
+        See wit_responses.py for sample response data.
 
         :rtype: :py:class:`~fact_model.IncomingFact`
         :return: newly saved IncomingFact created from provided data; None if fact cannot be created
@@ -138,31 +139,6 @@ class FactManager(object):
 
         :type parsed_data: dict
         :arg parsed_data: data returned from wit.ai
-
-        Example parsed_data:
-        {
-          "_text": "the otter lives in the river",
-          "msg_id": "f4a87a89-7f95-419d-987c-af6c3c0b82e7",
-          "outcomes": [{
-            "_text": "the otter lives in the river",
-            "confidence": 1,
-            "entities": {
-              "animal": [{
-                "type": "value",
-                "value": "otter"
-                }],
-              "place": [{
-                "type": "value",
-                "value": "river"
-                }],
-              "relationship": [{
-                "type": "value",
-                "value": "lives in"
-                }]
-              },
-              "intent": "animal_place_fact"
-            }]
-          }
 
         """
         print("\nPARSED_DATA")
@@ -175,7 +151,7 @@ class FactManager(object):
             raise cls.ParseError("Invalid fact data: {0}: {1}".format(message, parsed_data))
 
         # Verify parsed_data as much as possible before processing
-        cls._verify_parsed_data(parsed_data, raise_parse_error)
+        cls._verify_parsed_fact_data(parsed_data, raise_parse_error)
 
         # It is safe to grab first outcome since verification passed
         outcome = parsed_data['outcomes'][0]
@@ -189,15 +165,15 @@ class FactManager(object):
         outcome_entities = outcome.get('entities') or {}
         concepts = []
         for entity_type, entity_data in outcome_entities.iteritems():
-            # entity_type is string like 'relationship', 'animal', 'species', 'place', etc.
+            # entity_type is 'relationship', 'number', 'animal', 'species', 'place', etc.
             # entity_data is list of dicts with keys 'type', 'value' and optionally 'suggested'
-            if entity_type != 'relationship':
+            if entity_type not in ('relationship', 'number'):
                 concept = cls._ensure_concept_with_type(entity_data, entity_type)
                 if not concept:
                     raise_parse_error("invalid data for concept_type '{0}'".format(entity_type))
                 concepts.append(concept)
 
-        # Now select or create Relationships as needed.
+        # Now select or create Relationship
         # If relationships exist, expect one subject and one object concept.
         relationship_entity_data = outcome_entities.get('relationship')
         if relationship_entity_data:
@@ -374,7 +350,7 @@ class FactManager(object):
     def _merge_to_db_session(cls, model):
         """Merge provided model object to database session.
 
-        Do not commit.
+        Do not commit db session.
 
         :rtype: instance of class from fact_model
         :return: instance after db session merge
@@ -414,35 +390,52 @@ class FactManager(object):
         return subjects.extend(other)
 
     @classmethod
-    def _verify_parsed_data(cls, parsed_data, raise_fn):
-        """Raise if provided parsed data does not appear valid.
+    def _verify_parsed_fact_data(cls, parsed_fact_data, raise_fn):
+        """Raise if provided parsed fact data does not appear valid.
 
-        Run those checks against parsed_data that do not require processing.
+        Run checks that do not require much processing:
+        * Presence of '_text' attribute
+        * Intent looks like fact
+        * Confidence rating meets threshold
+        * Presence of exactly one outcome
+        * Outcome has sufficient entities
+        * Outcome has exactly one relationship entity
 
-        :type parsed_data: dict
-        :arg parsed_data: JSON response from wit.ai
+        :type parsed_fact_data: dict
+        :arg parsed_fact_data: JSON response from wit.ai
 
         :type raise_fn: fn(message)
         :arg raise_fn: function to call if problem is found
 
         """
         # _text attribute is required
-        sentence = parsed_data.get('_text')
+        sentence = parsed_fact_data.get('_text')
         if not sentence:
             raise_fn("no _text attribute")
-
-        # Expect exactly one outcome
-        outcomes = parsed_data.get('outcomes') or []
-        if len(outcomes) != 1:
-            raise_fn("expected 1 outcome, found {0}".format(len(outcomes)))
-        outcome = outcomes[0]
 
         # Verify that parsed data is fact and not query
         if not cls._is_fact_intent(outcome['intent']):
             raise_fn("non-fact outcome intent '{0}'".format(outcome['intent']))
 
-        # Q: Skip outcomes with low confidence rating?
+        # Skip outcomes with low confidence rating
         if outcome['confidence'] < cls.CONFIDENCE_THRESHOLD:
             raise_fn("confidence={0}, threshold={1}".format(
                     outcome['confidence'], cls.CONFIDENCE_THRESHOLD))
+
+        # Expect exactly one outcome
+        outcomes = parsed_fact_data.get('outcomes') or []
+        if len(outcomes) != 1:
+            raise_fn("expected 1 outcome, found {0}".format(len(outcomes)))
+        outcome = outcomes[0]
+
+        # Expect at least 3 entities overall: relationship, subject and object
+        entities = outcome.get('entities') or {}
+        if len(entities) < 3:
+            raise_fn("expected at least 3 entities, found {0}".format(len(entities)))
+
+        # Expect exactly one relationship entity
+        relationship_entity = entities.get('relationship') or []
+        if len(relationship_entity) != 1:
+            raise_fn("expected 1 relationship entity, found {0}".format(len(relationship_entity)))
+
 

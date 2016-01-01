@@ -15,6 +15,7 @@ from mock import ANY, Mock, patch
 
 from animalia.fact_manager import FactManager
 import animalia.fact_model as fact_model
+import wit_responses
 
 
 @patch.object(FactManager, '_merge_to_db_session')
@@ -22,27 +23,18 @@ import animalia.fact_model as fact_model
 @patch.object(FactManager, '_filter_entity_values')
 @patch.object(FactManager, '_reorder_concepts_by_subject')
 @patch.object(FactManager, '_ensure_concept_with_type')
-@patch.object(FactManager, '_verify_parsed_data')
+@patch.object(FactManager, '_verify_parsed_fact_data')
 class SaveParsedFactTests(unittest.TestCase):
     """Verify behavior of FactManager._save_parsed_fact.
 
     This needs a lot of mocks, but that is okay since it is a workhorse of a method.
     """
 
-    def setUp(self):
-        self._animal_species_fact_data = {
-            '_text': 'the otter is a mammal',
-            'outcomes': [{
-                    '_text': 'the otter is a mammal',
-                    'confidence': 0.9,
-                    'entities': {
-                        'animal': [{'type': 'value', 'value': 'otter'}],
-                        'species': [{'type': 'value', 'value': 'mammal'}],
-                        'relationship': [{'type': 'value', 'value': 'is a'}]
-                        },
-                    'intent': 'animal_species_fact'
-                    }]
-            }
+    def _get_wit_response_data(self, key):
+        """Return JSON that is captured wit.ai response data with specified name.
+        """
+        return getattr(wit_responses, key)
+
 
     def test_save_parsed_fact__relationship(self, verify_data, ensure_typed_concept, 
                                             reorder_concepts, filter_entities,
@@ -50,7 +42,7 @@ class SaveParsedFactTests(unittest.TestCase):
         """Verify calls made by _save_parsed_fact for a relationship with subject and object.
         """
         # Set up mocks and test data
-        test_data = self._animal_species_fact_data
+        test_data = self._get_wit_response_data('animal_species_fact_data')
 
         test_subject_concept = fact_model.Concept(concept_name='otter')
         test_object_concept = fact_model.Concept(concept_name='mammal')
@@ -94,3 +86,12 @@ class SaveParsedFactTests(unittest.TestCase):
         self.assertEqual(new_fact_id, incoming_fact_arg.fact_id)
         self.assertEqual('the otter is a mammal', incoming_fact_arg.fact_text)
         self.assertEqual(json.dumps(test_data), incoming_fact_arg.parsed_fact)
+
+    def test_save_parsed_fact__count_relationship(self, verify_data, ensure_typed_concept, 
+                                                  reorder_concepts, filter_entities,
+                                                  ensure_relationship, merge_to_session):
+        """Verify calls made by _save_parsed_fact for a relationship with number entity.
+        """
+        # Set up mocks and test data
+        test_data = self._get_wit_response_data('animal_leg_fact_data')
+        self.fail("not implemented")
