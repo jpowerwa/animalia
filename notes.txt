@@ -42,6 +42,11 @@ goal: same as above
 pip install flask-api
 unittests for flask endpoints
 
+day 7
+goal: same as above
+Getting to the fun part!
+code for Add Fact API in FactManager
+unittests for FactModel
 
 points of confusion
 1. wit.ai: hard to find description of its general model; confusing that demo emphasis is on voice; would be nice to see set of intents defined in trained wit application.
