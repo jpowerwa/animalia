@@ -6,39 +6,52 @@
 
 from __future__ import unicode_literals
 
+import json
+import logging
+import uuid 
+
+import wit
+
+from config import Config
 import fact_model
 
+logger = logging.getLogger('animalia.FactManager')
+
+
 class FactManager(object):
+
 
     class ParseError(Exception):
         """Exception to raise if user-supplied fact sentence cannot be parsed.
         """
         pass
-    
 
-    def __init__(self, **kwargs):
-        self.fact_id = kwargs.get('fact_id') or None
-        self.sentence = kwargs.get('sentence') or None
+    # Value between 0 and 1 that is threshold for acceptable outcome returned by wit.ai
+    CONFIDENCE_THRESHOLD = Config.parsed_data_confidence_threshold
 
+    # List of strings that indicate concept that is subject of relationship
+    SUBJECT_CONCEPTS = Config.parsed_data_subject_concepts
 
-    # classmethods
+    # Initialize wit exactly once
+    _wit_initialized = False
+
 
     @classmethod
     def answer_question(cls, question):
         """
 
         :rtype: unicode 
-        :return: string that answers provided question or None if there is no known answer
+        :return: string that answers provided question; None if there is no known answer
 
         """
         pass
 
     @classmethod
     def fact_from_sentence(cls, sentence):
-        """Factory method to create Fact from sentence.
+        """Factory method to create IncomingFact from sentence.
 
-        :rtype: :py:class:`Fact`
-        :return: Fact created from provided sentence
+        :rtype: :py:class:`~fact_model.IncomingFact`
+        :return: IncomingFact created from provided sentence
 
         :type sentence: unicode
         :arg sentence: fact sentence in supported format
@@ -47,34 +60,389 @@ class FactManager(object):
         sentence = cls._normalize_sentence(sentence)
         incoming_fact = fact_model.IncomingFact.select_by_text(sentence)
         if not incoming_fact:
-            incoming_fact = fact_model.IncomingFact(fact_text=sentence).save()
+            cls._ensure_wit_initialized()
+            wit_response = wit.text_query(sentence, Config.wit_access_token)
+            parsed_data = json.loads(wit_response)
+            incoming_fact = cls._save_parsed_fact(parsed_data=parsed_data)
         return incoming_fact
 
     @classmethod
     def get_fact_by_id(cls, fact_id):
-        """Retrieve specified Fact by id.
+        """Retrieve specified IncomingFact by id.
 
-        :rtype: :py:class:`Fact`
-        :return: retrieved Fact or None if no matching fact exists
+        :rtype: :py:class:`~fact_model.IncomingFact`
+        :return: retrieved Fact; None if no matching fact exists
 
         :type fact_id: UUID
-        :arg fact_id: id of persisted Fact
+        :arg fact_id: id of persisted IncomingFact
 
         """
         return fact_model.IncomingFact.select_by_id(fact_id)
 
-
     @classmethod
     def delete(cls, fact_id):
-        """Delete persisted data corresponding to this Fact.
+        """Delete persisted data corresponding to this IncomingFact.
+
+        :type fact_id: UUID
+        :arg fact_id: id of IncomingFact to be deleted
+
         """
         pass
 
+
+    # private methods
+
+    @classmethod
+    def _ensure_wit_initialized(cls):
+        """Ensure that proxy to wit.ai is ready to be used.
+        """
+        if not cls._wit_initialized:
+            wit.init()   
+            cls._wit_initialized = True
+
+    @classmethod
+    def _is_fact_intent(cls, intent):
+        """Determine if specfied intent fact or query.
+
+        :rtype: bool
+        :return: True if specified intent is for a fact
+
+        :type intent: unicode
+        :arg intent: intent returned by wit.ai; e.g. 'animal_place_fact'
+
+        """
+        return (outcome.get('intent') or '').endswith('fact')
+
     @classmethod
     def _normalize_sentence(cls, sentence):
+        """Normalize provided sentence for comparison, parsing and persistence.
+
+        :rtype: unicode
+        :return: normalized sentence
+
+        :type sentence: unicode
+        :arg sentence: user-provided fact or query sentence
+
+        """
         return sentence.lower()
 
+    @classmethod
+    def _save_parsed_fact(cls, parsed_data=None):
+        """Persist IncomingFact and related ORM objects created from provided parsed_data.
 
+        Do not commit.
+
+        :rtype: :py:class:`~fact_model.IncomingFact`
+        :return: newly saved IncomingFact created from provided data; None if fact cannot be created
+        :raise: :py:class:`FactManager.ParseError` if provided data is invalid
+
+        :type parsed_data: dict
+        :arg parsed_data: data returned from wit.ai
+
+        Example parsed_data:
+        {
+          "_text": "the otter lives in the river",
+          "msg_id": "f4a87a89-7f95-419d-987c-af6c3c0b82e7",
+          "outcomes": [{
+            "_text": "the otter lives in the river",
+            "confidence": 1,
+            "entities": {
+              "animal": [{
+                "type": "value",
+                "value": "otter"
+                }],
+              "place": [{
+                "type": "value",
+                "value": "river"
+                }],
+              "relationship": [{
+                "type": "value",
+                "value": "lives in"
+                }]
+              },
+              "intent": "animal_place_fact"
+            }]
+          }
+
+        """
+        print("\nPARSED_DATA")
+        from pprint import pprint
+        pprint(parsed_data)
+
+        def raise_parse_error(message):
+            """Wrapper to raise consistently formatted ParseError exceptions.
+            """
+            raise cls.ParseError("Invalid fact data: {0}: {1}".format(message, parsed_data))
+
+        # Verify parsed_data as much as possible before processing
+        cls._verify_parsed_data(parsed_data, raise_parse_error)
+
+        # It is safe to grab first outcome since verification passed
+        outcome = parsed_data['outcomes'][0]
+        logger.debug("Handling outcome data: {0}".format(outcome))
+
+        # Id for new IncomingFact and for any Relationships created to record fact.
+        new_fact_id = uuid.uuid4()
+        logger.debug("New fact_id={0}".format(new_fact_id))
+
+        # Iterate entities, selecting or creating Concepts as needed
+        outcome_entities = outcome.get('entities') or {}
+        concepts = []
+        for entity_type, entity_data in outcome_entities.iteritems():
+            # entity_type is string like 'relationship', 'animal', 'species', 'place', etc.
+            # entity_data is list of dicts with keys 'type', 'value' and optionally 'suggested'
+            if entity_type != 'relationship':
+                concept = cls._ensure_concept_with_type(entity_data, entity_type)
+                if not concept:
+                    raise_parse_error("invalid data for concept_type '{0}'".format(entity_type))
+                concepts.append(concept)
+
+        # Now select or create Relationships as needed.
+        # If relationships exist, expect one subject and one object concept.
+        relationship_entity_data = outcome_entities.get('relationship')
+        if relationship_entity_data:
+            if len(concepts) != 2:
+                raise_parse_error("expected 2 concepts, found {0}".format(len(concepts)))
+
+            # Reorder concepts so that subject concept is first
+            try:
+                concepts = cls._reorder_concepts_by_subject(concepts)
+                object_concept = concepts.pop()
+                subject_concept = concepts.pop()
+            except ValueError as ex:
+                raise_parse_error(str(ex))
+
+            # Filter relationship_entity_data for non-suggested relationship_names
+            relationship_names, suggested = cls._filter_entity_values(relationship_entity_data)
+            for name in suggested:
+                logger.warn(("Skipping suggested relationship '{0}' for subject '{1}' "
+                             "and object '{2}'").format(
+                        name, subject_concept.concept_name, object_concept.concept_name))
+
+            # Create relationships linking subject and object concepts
+            relationships = []
+            for name in relationship_names:
+                relationships.append(cls._ensure_relationship(subject_concept, 
+                                                              object_concept, 
+                                                              relationship_name=name, 
+                                                              new_fact_id=new_fact_id))
+
+        # TODO: Deal with failed or duplicated relationships
+
+        # Merge Relationships and unrelated Concepts
+        if relationships:
+            saved_relationships = map(lambda r: cls._merge_to_db_session(r),
+                                      [r for r in relationships if not r.relationship_id])
+            logger.debug("Saved {0} relationships".format(len(saved_relationships)))
+        if concepts:
+            saved_concepts = map(lambda c: cls._merge_to_db_session(c), 
+                                 [c for c in concepts if not c.concept_id])
+            logger.debug("Saved {0} unrelated concepts".format(len(saved_concepts)))
+
+        # Create, merge and return IncomingFact record
+        incoming_fact = fact_model.IncomingFact(fact_id=new_fact_id, 
+                                                fact_text=parsed_data['_text'], 
+                                                parsed_fact=json.dumps(parsed_data))
+        return cls._merge_to_db_session(incoming_fact)
+
+    @classmethod
+    def _ensure_concept(cls, concept_name):
+        """
+        :rtype :py:class:`~fact_model.Concept`
+        :return: existing or unpersisted, newly created Concept object with specified name
+
+        :type concept_name: unicode
+        :arg concept_name: name of concept
+
+        """
+        concept = Concept.select_by_name(concept_name)
+        if not concept:
+            concept = Concept(concept_name=concept_name)
+        return concept
+
+    @classmethod
+    def _ensure_concept_with_type(cls, concept_data, concept_type, new_fact_id=None):
+        """
+        Example concept_data: [{"type": "value", "value": "otter"}]
+        Example concept_type: 'animal'
+
+        :rtype: :py:class:`~fact_model.Concept`; None if Concept cannot be created
+        :return: existing or unpersisted, newly-created Concept for provided data 
         
+        :type concept_data: list of dicts with 'type', 'value' and optional 'suggested' keys
+        :arg concept_data: data about concept associated with specified concept_type
 
-    
+        :type concept_type: unicode
+        :arg concept_type: concept type associated with provided concept data, e.g. 'animal', 'food'
+
+        :type new_fact_id: uuid
+        :arg new_fact_id: optional fact_id to assign to newly created Concepts or Relationship
+
+        """
+        typed_concept = None
+
+        subjects, suggested_subjects = cls._filter_entity_values(concept_data)
+        for subject in suggested:
+            logger.warn("Skipping suggested subject '{0}' for concept_type '{1}'".format(
+                    subject, concept_type))
+
+        if subjects:
+            if len(subjects) > 1:
+                logger.warn(("Multiple subjects for concept_type '{0}': {1}; "
+                             "ignoring all but '{2}'").format(
+                        concept_type, subjects, subjects[0]))
+
+            # Ensure concept for subject, e.g. 'otter' 
+            subject_concept = cls._ensure_concept(subjects[0])
+            # Ensure concept for type, e.g. 'animal'
+            type_concept = cls._ensure_concept(concept_type)
+            # Ensure 'is' relationship for subject and type, e.g. 'otter is animal'
+            subject_is_type_rel = cls._ensure_relationship(subject_concept,
+                                                           type_concept,
+                                                           relationship_name='is',
+                                                           new_fact_id=new_fact_id)
+            typed_concept = subject_is_type_rel.subject
+        else:
+            logger.error("No subjects for concept type '{0}': {1}".format(
+                    concept_type, concept_data))
+
+        return typed_concept
+
+    @classmethod
+    def _ensure_relationship(cls, subject_concept, object_concept, relationship_name=None, 
+                             new_fact_id=None):
+        """
+        :rtype: :py:class:`~fact_model.Relationship`
+        :return: existing or unpersisted, newly created Relationship linking subject and object
+
+        :type subject_concept: :py:class:`~fact_model.Concept`
+        :arg subject: subject of relationship
+
+        :type object_concept: :py:class:`~fact_model.Concept`
+        :arg object: object of relationship
+
+        :type relationship_name: unicode
+        :arg relationship_name: name of relationship, e.g. 'is', 'lives', 'eats'
+        
+        :type new_fact_id: uuid
+        :arg new_fact_id: optional fact_id to be associated with newly-created relationship
+        
+        """
+        # Find or create relevant RelationshipType
+        relationship_type = fact_model.RelationshipType.select_by_name(relationship_name)
+        if not relationship_type:
+            relationship_type = fact_model.RelationshipType(
+                relationship_type_name=relationship_name)
+
+        # If subject and object concepts and relationship type all exist, check for existing
+        # relationship.
+        relationship = None
+        if (subject_concept.concept_id 
+            and object_concept.concept_id 
+            and relationship_type.relationship_type_id):
+            relationship = fact_model.Relationship.select_by_foreign_keys(
+                subject_concept.concept_id, 
+                object_concept.concept_id, 
+                relationship_type.relationship_type_id)
+        
+        if not relationship:
+            relationship = fact_model.Relationship(subject=subject_concept,
+                                                   object=object_concept,
+                                                   relationship_type=relationship_type,
+                                                   fact_id=new_fact_id)
+        return relationship
+
+    @classmethod
+    def _filter_entity_values(cls, entity_data):
+        """Return lists of strings that are values of 'value' entities.
+
+        :rtype: ([unicode, ...], [unicode, ...])
+        :return: tuple of lists; first is non-suggested values, second is suggested values
+
+        :type entity_data: list of dicts with keys 'type', 'value' and, optionally, 'suggested'
+        :arg entity_data: value of 'entities' dict in wit.ai parsed fact
+
+        """
+        vals = []
+        suggested_vals = []
+        for entity in [e for e in entity_data if e.get('type') == 'value']:
+            target_list = suggested_vals if entity.get('suggested') else vals
+            target_list.append(entity['value'])
+        return vals, suggested_vals
+
+    @classmethod
+    def _merge_to_db_session(cls, model):
+        """Merge provided model object to database session.
+
+        Do not commit.
+
+        :rtype: instance of class from fact_model
+        :return: instance after db session merge
+
+        :type model: instance of class from fact_model
+        :arg model: instance to merge to db session
+
+        """
+        return db.session.merge(model)
+
+    @classmethod
+    def _reorder_concepts_by_subject(cls, concepts):
+        """Reorder provided Concepts so that subject concept is first.
+
+        :rtype: [:py:class:`~fact_model.Concept`]
+        :return: list of Concepts in which first Concept is subject
+
+        :type concepts: [:py:class:`~fact_model.Concept`]
+        :arg concepts: list of Concepts, presumably containing one subject concept
+
+        """
+        subjects = []
+        other = []
+        for c in concepts:
+            if c.concept_name.lower() in cls.SUBJECT_CONCEPTS:
+                subjects.append(c)
+            else:
+                other.append(c)
+
+        if not subjects:
+            logger.error("No subject concept found in concepts: {0}; possible subjects: {1}".format(
+                    [c.concept_name for c in concepts], cls.SUBJECT_CONCEPTS))
+        if len(subjects) != 1:
+            logger.error("Multiple subject concepts found in concepts: {0}; subjects: {1}".format(
+                    [c.concept_name for c in concepts], [c.concept_name for c in subjects]))
+
+        return subjects.extend(other)
+
+    @classmethod
+    def _verify_parsed_data(cls, parsed_data, raise_fn):
+        """Raise if provided parsed data does not appear valid.
+
+        Run those checks against parsed_data that do not require processing.
+
+        :type parsed_data: dict
+        :arg parsed_data: JSON response from wit.ai
+
+        :type raise_fn: fn(message)
+        :arg raise_fn: function to call if problem is found
+
+        """
+        # _text attribute is required
+        sentence = parsed_data.get('_text')
+        if not sentence:
+            raise_fn("no _text attribute")
+
+        # Expect exactly one outcome
+        outcomes = parsed_data.get('outcomes') or []
+        if len(outcomes) != 1:
+            raise_fn("expected 1 outcome, found {0}".format(len(outcomes)))
+        outcome = outcomes[0]
+
+        # Verify that parsed data is fact and not query
+        if not cls._is_fact_intent(outcome['intent']):
+            raise_fn("non-fact outcome intent '{0}'".format(outcome['intent']))
+
+        # Q: Skip outcomes with low confidence rating?
+        if outcome['confidence'] < cls.CONFIDENCE_THRESHOLD:
+            raise_fn("confidence={0}, threshold={1}".format(
+                    outcome['confidence'], cls.CONFIDENCE_THRESHOLD))
+
