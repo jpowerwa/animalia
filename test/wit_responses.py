@@ -36,3 +36,33 @@ animal_species_fact_data = {
             'intent': 'animal_species_fact'
             }]
     }
+
+animal_species_fact_with_suggestion_data = {
+    "_text": "is the otter a mammal",
+    "msg_id": "ebc5a6fe-934b-4048-ab13-db30883d0b57",
+    "outcomes": [{
+            "_text": "is the otter a mammal",
+            "confidence": 0.748,
+            "entities": {
+                "animal": [{
+                        "type": "value",
+                        "value": "otter"
+                        }],
+                "relationship": [{
+                        "suggested": True,
+                        "type": "value",
+                        "value": "a"
+                        }, {
+                        "type": "value",
+                        "value": "is"
+                        }],
+                "species": [{
+                        "type": "value",
+                        "value": "mammal"
+                        }]
+                },
+            "intent": "animal_species_fact"
+            }]
+    }
+
+

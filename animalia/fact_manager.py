@@ -19,12 +19,8 @@ logger = logging.getLogger('animalia.FactManager')
 
 
 class FactManager(object):
-
-
-    class ParseError(Exception):
-        """To raise if user-supplied fact sentence cannot be parsed or if parsed data is invalid.
-        """
-        pass
+    """
+    """
 
     # Value between 0 and 1 that is threshold for acceptable outcome returned by wit.ai
     CONFIDENCE_THRESHOLD = Config.parsed_data_confidence_threshold
@@ -35,6 +31,15 @@ class FactManager(object):
     # Initialize wit exactly once
     _wit_initialized = False
 
+    class ConflictError(Exception):
+        """To raise if provided fact conflicts with an existing fact.
+        """
+        pass
+
+    class ParseError(Exception):
+        """To raise if user-supplied fact sentence cannot be parsed or if parsed data is invalid.
+        """
+        pass
 
     @classmethod
     def answer_question(cls, question):
@@ -157,10 +162,11 @@ class FactManager(object):
 
     @classmethod
     def _ensure_relationship(cls, subject_concept, object_concept, relationship_name=None, 
-                             new_fact_id=None):
+                             relationship_number=None, new_fact_id=None):
         """
         :rtype: :py:class:`~fact_model.Relationship`
         :return: existing or unpersisted, newly created Relationship linking subject and object
+        :raise: :py:class:`FactManager.ConflictError` if relationship conflicts with existing data
 
         :type subject_concept: :py:class:`~fact_model.Concept`
         :arg subject: subject of relationship
@@ -171,6 +177,9 @@ class FactManager(object):
         :type relationship_name: unicode
         :arg relationship_name: name of relationship, e.g. 'is', 'lives', 'eats'
         
+        :type relationship_number: int
+        :arg relationship_number: optional number associated with relationship, e.g. number of legs
+
         :type new_fact_id: uuid
         :arg new_fact_id: optional fact_id to be associated with newly-created relationship
         
@@ -191,11 +200,28 @@ class FactManager(object):
                 subject_concept.concept_id, 
                 object_concept.concept_id, 
                 relationship_type.relationship_type_id)
-        
+
+        if relationship and relationship_number is not None:
+            if relationship.count is None:
+                # Update relationship data if needed
+                relationship.count = relationship_number
+            elif relationship.count != relationship_number:
+                # If specified number conflicts with persisted number, raise.
+                raise cls.ConflictError(
+                    ("Conflict with existing relationship where subject={subj}, "
+                     "object={obj} and relationship={rel}; persisted count conflicts "
+                     "with specified count: {current_count} vs {new_count}").format(
+                        subj=subject_concept.concept_name,
+                        obj=object_concept.concept_name,
+                        rel=relationship_name,
+                        current_count=relationship.count,
+                        new_count=relationship_number))
+                        
         if not relationship:
             relationship = fact_model.Relationship(subject=subject_concept,
                                                    object=object_concept,
                                                    relationship_type=relationship_type,
+                                                   count=relationship_number,
                                                    fact_id=new_fact_id)
         return relationship
 
@@ -272,6 +298,7 @@ class FactManager(object):
 
         :rtype: [:py:class:`~fact_model.Concept`]
         :return: list of Concepts in which first Concept is subject
+        :raise: ValueError if zero or multiple subject Concepts are found
 
         :type concepts: [:py:class:`~fact_model.Concept`]
         :arg concepts: list of Concepts, presumably containing one subject concept
@@ -286,10 +313,12 @@ class FactManager(object):
                 other.append(c)
 
         if not subjects:
-            logger.error("No subject concept found in concepts: {0}; possible subjects: {1}".format(
+            raise ValueError(
+                "No subject concept found in concepts: {0}; possible subjects: {1}".format(
                     [c.concept_name for c in concepts], cls.SUBJECT_CONCEPTS))
         if len(subjects) != 1:
-            logger.error("Multiple subject concepts found in concepts: {0}; subjects: {1}".format(
+            raise ValueError(
+                "Multiple subject concepts found in concepts: {0}; subjects: {1}".format(
                     [c.concept_name for c in concepts], [c.concept_name for c in subjects]))
 
         return subjects.extend(other)
@@ -304,19 +333,21 @@ class FactManager(object):
         :rtype: :py:class:`~fact_model.IncomingFact`
         :return: newly saved IncomingFact created from provided data; None if fact cannot be created
         :raise: :py:class:`FactManager.ParseError` if provided data is invalid
+        :raise: :py:class:`FactManager.ConflictError` if provided data conflicts with existing fact
 
         :type parsed_data: dict
         :arg parsed_data: data returned from wit.ai
 
         """
-        print("\nPARSED_DATA")
-        from pprint import pprint
-        pprint(parsed_data)
+        # print("\nPARSED_DATA")
+        # from pprint import pprint
+        # pprint(parsed_data)
 
         def raise_parse_error(message):
             """Wrapper to raise consistently formatted ParseError exceptions.
             """
-            raise cls.ParseError("Invalid fact data: {0}: {1}".format(message, parsed_data))
+            raise cls.ParseError("Invalid parsed fact data: {0}; parsed_data={1}".format(
+                    message, json.dumps(parsed_data)))
 
         # Verify parsed_data as much as possible before processing
         cls._verify_parsed_fact_data(parsed_data, raise_parse_error)
@@ -332,56 +363,62 @@ class FactManager(object):
         # Iterate entities, selecting or creating Concepts as needed
         outcome_entities = outcome.get('entities') or {}
         concepts = []
-        for entity_type, entity_data in outcome_entities.iteritems():
+        for entity_type, entity_data in outcome_entities.iteritems(): 
             # entity_type is 'relationship', 'number', 'animal', 'species', 'place', etc.
             # entity_data is list of dicts with keys 'type', 'value' and optionally 'suggested'
             if entity_type not in ('relationship', 'number'):
                 concept = cls._ensure_concept_with_type(entity_data, entity_type)
                 if not concept:
-                    raise_parse_error("invalid data for concept_type '{0}'".format(entity_type))
+                    raise_parse_error("Invalid data for concept_type '{0}': {1}".format(
+                            entity_type, json.dumps(entity_data)))
                 concepts.append(concept)
 
-        # Now select or create Relationship
-        # If relationships exist, expect one subject and one object concept.
+        # Verify two concepts
+        if len(concepts) != 2:
+            raise_parse_error("Expected 2 concept entities, found {0}: {1}".format(
+                    len(concepts), ["'{}'".format(c.concept_name) for c in concepts]))
+
+        # Reorder concepts so that subject concept is first
+        try:
+            concepts = cls._reorder_concepts_by_subject(concepts)
+            subject_concept = concepts[0]
+            object_concept = concepts[1]
+        except ValueError as ex:
+            raise_parse_error(str(ex))
+
+        # Select or create Relationship linking Concepts
         relationship_entity_data = outcome_entities.get('relationship')
-        if relationship_entity_data:
-            if len(concepts) != 2:
-                raise_parse_error("expected 2 concepts, found {0}".format(len(concepts)))
+        relationship_names, suggested = cls._filter_entity_values(relationship_entity_data)
+        if len(relationship_names) != 1:
+            raise_parse_error(
+                ("Expected 1 relationship entity for subject '{subj}' and object '{obj}'; "
+                 "found {count}").format
+                (subj=subject_concept.concept_name, 
+                 obj=object_concept.concept_name, 
+                 count=len(relationship_names)))
+        for name in suggested:
+            logger.warn(("Skipping suggested relationship '{0}' for subject '{1}' "
+                         "and object '{2}'").format(
+                    name, subject_concept.concept_name, object_concept.concept_name))
 
-            # Reorder concepts so that subject concept is first
-            try:
-                concepts = cls._reorder_concepts_by_subject(concepts)
-                object_concept = concepts.pop()
-                subject_concept = concepts.pop()
-            except ValueError as ex:
-                raise_parse_error(str(ex))
+        # Find relationship number if present
+        relationship_number = None
+        if outcome_entities.get('number'):
+            relationship_numbers, _ = cls._filter_entity_values(outcome_entities['number'])
+            if len(relationship_numbers) == 1:
+                relationship_number = relationship_numbers[0]
 
-            # Filter relationship_entity_data for non-suggested relationship_names
-            relationship_names, suggested = cls._filter_entity_values(relationship_entity_data)
-            for name in suggested:
-                logger.warn(("Skipping suggested relationship '{0}' for subject '{1}' "
-                             "and object '{2}'").format(
-                        name, subject_concept.concept_name, object_concept.concept_name))
-
-            # Create relationships linking subject and object concepts
-            relationships = []
-            for name in relationship_names:
-                relationships.append(cls._ensure_relationship(subject_concept, 
-                                                              object_concept, 
-                                                              relationship_name=name, 
-                                                              new_fact_id=new_fact_id))
+        # Select, create or update relationship
+        relationship = cls._ensure_relationship(subject_concept, 
+                                                object_concept, 
+                                                relationship_name=relationship_names[0], 
+                                                relationship_number=relationship_number,
+                                                new_fact_id=new_fact_id)
 
         # TODO: Deal with failed or duplicated relationships
 
-        # Merge Relationships and unrelated Concepts
-        if relationships:
-            saved_relationships = map(lambda r: cls._merge_to_db_session(r),
-                                      [r for r in relationships if not r.relationship_id])
-            logger.debug("Saved {0} relationships".format(len(saved_relationships)))
-        if concepts:
-            saved_concepts = map(lambda c: cls._merge_to_db_session(c), 
-                                 [c for c in concepts if not c.concept_id])
-            logger.debug("Saved {0} unrelated concepts".format(len(saved_concepts)))
+        # Merge relationship to db session
+        cls._merge_to_db_session(relationship)
 
         # Create, merge and return IncomingFact record
         incoming_fact = fact_model.IncomingFact(fact_id=new_fact_id, 
@@ -411,31 +448,31 @@ class FactManager(object):
         # _text attribute is required
         sentence = parsed_fact_data.get('_text')
         if not sentence:
-            raise_fn("no _text attribute")
+            raise_fn("No _text attribute")
 
         # Verify that parsed data is fact and not query
         if not cls._is_fact_intent(outcome['intent']):
-            raise_fn("non-fact outcome intent '{0}'".format(outcome['intent']))
+            raise_fn("Non-fact outcome intent '{0}'".format(outcome['intent']))
 
         # Skip outcomes with low confidence rating
         if outcome['confidence'] < cls.CONFIDENCE_THRESHOLD:
-            raise_fn("confidence={0}, threshold={1}".format(
+            raise_fn("Confidence={0}, threshold={1}".format(
                     outcome['confidence'], cls.CONFIDENCE_THRESHOLD))
 
         # Expect exactly one outcome
         outcomes = parsed_fact_data.get('outcomes') or []
         if len(outcomes) != 1:
-            raise_fn("expected 1 outcome, found {0}".format(len(outcomes)))
+            raise_fn("Expected 1 outcome, found {0}".format(len(outcomes)))
         outcome = outcomes[0]
 
         # Expect at least 3 entities overall: relationship, subject and object
         entities = outcome.get('entities') or {}
         if len(entities) < 3:
-            raise_fn("expected at least 3 entities, found {0}".format(len(entities)))
+            raise_fn("Expected at least 3 entities, found {0}".format(len(entities)))
 
         # Expect exactly one relationship entity
         relationship_entity = entities.get('relationship') or []
         if len(relationship_entity) != 1:
-            raise_fn("expected 1 relationship entity, found {0}".format(len(relationship_entity)))
+            raise_fn("Expected 1 relationship entity, found {0}".format(len(relationship_entity)))
 
 
