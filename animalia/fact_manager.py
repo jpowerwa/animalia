@@ -18,6 +18,27 @@ import fact_model
 logger = logging.getLogger('animalia.FactManager')
 
 
+class IncomingFactError(Exception):
+    """Base class for errors processing incoming fact.
+    """
+    pass
+
+class FactConflictError(IncomingFactError):
+    """To raise if incoming fact conflicts with an existing fact.
+    """
+    pass
+
+class FactParseError(IncomingFactError):
+    """To raise if incoming fact sentence cannot be parsed or if parsed data is invalid.
+    """
+    pass
+
+class InvalidFactDataError(IncomingFactError):
+    """To raise if data parsed from fact does not meet expectations.
+    """
+    pass
+
+
 class FactManager(object):
     """
     """
@@ -30,21 +51,6 @@ class FactManager(object):
 
     # Initialize wit exactly once
     _wit_initialized = False
-
-    class IncomingFactError(Exception):
-        """Base class for errors processing incoming fact.
-        """
-        pass
-
-    class ConflictError(IncomingFactError):
-        """To raise if provided fact conflicts with an existing fact.
-        """
-        pass
-
-    class ParseError(IncomingFactError):
-        """To raise if user-supplied fact sentence cannot be parsed or if parsed data is invalid.
-        """
-        pass
 
     @classmethod
     def answer_question(cls, question):
@@ -61,9 +67,8 @@ class FactManager(object):
         """Factory method to create IncomingFact from sentence.
 
         :rtype: :py:class:`~fact_model.IncomingFact`
-        :return: IncomingFact created from provided sentence
-        :raise: :py:class:`FactManager.ParseError`
-        :raise: :py:class:`FactManager.ConflictError`
+        :return: IncomingFact object created from provided sentence
+        :raise: :py:class:`IncomingFactError` if fact cannot be processed
 
         :type sentence: unicode
         :arg sentence: fact sentence in supported format
@@ -74,6 +79,7 @@ class FactManager(object):
         if not incoming_fact:
             cls._ensure_wit_initialized()
             wit_response = wit.text_query(sentence, Config.wit_access_token)
+            # TODO: Handle wit parse error
             parsed_data = json.loads(wit_response)
             incoming_fact = cls._save_parsed_fact(parsed_data=parsed_data)
         return incoming_fact
@@ -339,8 +345,8 @@ class FactManager(object):
 
         :rtype: :py:class:`~fact_model.IncomingFact`
         :return: newly saved IncomingFact created from provided data; None if fact cannot be created
-        :raise: :py:class:`FactManager.ParseError` if provided data is invalid
-        :raise: :py:class:`FactManager.ConflictError` if provided data conflicts with existing fact
+        :raise: :py:class:`InvalidFactDataError` if provided data is invalid
+        :raise: :py:class:`FactConflictError` if provided data conflicts with existing fact
 
         :type parsed_data: dict
         :arg parsed_data: data returned from wit.ai
@@ -350,14 +356,14 @@ class FactManager(object):
         # from pprint import pprint
         # pprint(parsed_data)
 
-        def raise_parse_error(message):
-            """Wrapper to raise consistently formatted ParseError exceptions.
+        def raise_invalid_data_error(message):
+            """Wrapper to raise consistently formatted InvalidFactData exceptions.
             """
-            raise cls.ParseError("Invalid parsed fact data: {0}; parsed_data={1}".format(
+            raise InvalidFactDataError("Invalid parsed fact data: {0}; parsed_data={1}".format(
                     message, json.dumps(parsed_data)))
 
         # Verify parsed_data as much as possible before processing
-        cls._verify_parsed_fact_data(parsed_data, raise_parse_error)
+        cls._verify_parsed_fact_data(parsed_data, raise_invalid_data_error)
 
         # It is safe to grab first outcome since verification passed
         outcome = parsed_data['outcomes'][0]
@@ -376,13 +382,13 @@ class FactManager(object):
             if entity_type not in ('relationship', 'number'):
                 concept = cls._ensure_concept_with_type(entity_data, entity_type)
                 if not concept:
-                    raise_parse_error("Invalid data for concept_type '{0}': {1}".format(
+                    raise_invalid_data_error("Invalid data for concept_type '{0}': {1}".format(
                             entity_type, json.dumps(entity_data)))
                 concepts.append(concept)
 
         # Verify two concepts
         if len(concepts) != 2:
-            raise_parse_error("Expected 2 concept entities, found {0}: {1}".format(
+            raise_invalid_data_error("Expected 2 concept entities, found {0}: {1}".format(
                     len(concepts), ["'{}'".format(c.concept_name) for c in concepts]))
 
         # Reorder concepts so that subject concept is first
@@ -391,13 +397,13 @@ class FactManager(object):
             subject_concept = concepts[0]
             object_concept = concepts[1]
         except ValueError as ex:
-            raise_parse_error(str(ex))
+            raise_invalid_data_error(str(ex))
 
         # Select or create Relationship linking Concepts
         relationship_entity_data = outcome_entities.get('relationship')
         relationship_names, suggested = cls._filter_entity_values(relationship_entity_data)
         if len(relationship_names) != 1:
-            raise_parse_error(
+            raise_invalid_data_error(
                 ("Expected 1 relationship entity for subject '{subj}' and object '{obj}'; "
                  "found {count}").format
                 (subj=subject_concept.concept_name, 
@@ -444,6 +450,8 @@ class FactManager(object):
         * Confidence rating meets threshold
         * Outcome has sufficient entities
         * Outcome has exactly one relationship entity
+
+        :raise: :py:class:`InvalidFactDataError` if parsed_fact_data does not meet expectations
 
         :type parsed_fact_data: dict
         :arg parsed_fact_data: JSON response from wit.ai

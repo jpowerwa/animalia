@@ -9,16 +9,22 @@ from __future__ import unicode_literals
 import copy
 import datetime
 import json
+import logging
 import unittest
 import uuid
 
 from mock import ANY, Mock, patch
 
-import animalia.fact_manager as fact_manager
-from animalia.fact_manager import FactManager
+from animalia.fact_manager import (logger,
+                                   FactManager, 
+                                   FactConflictError, 
+                                   FactParseError, 
+                                   InvalidFactDataError)
 import animalia.fact_model as fact_model
 import wit_responses
 
+# Set log level for unit tests
+logger.setLevel(logging.WARN)
 
 @patch.object(FactManager, '_merge_to_db_session')
 @patch.object(FactManager, '_ensure_relationship')
@@ -154,7 +160,7 @@ class SaveParsedFactTests(unittest.TestCase):
         filter_entities.return_value = (['is'], ['a'])
 
         # Make call
-        with patch.object(fact_manager.logger, 'warn') as log_warn:
+        with patch.object(logger, 'warn') as log_warn:
             FactManager._save_parsed_fact(parsed_data=test_data)
         expected_warning = ("Skipping suggested relationship '{0}' "
                             "for subject '{1}' and object '{2}'").format('a', 'otter', 'mammal')
@@ -167,24 +173,25 @@ class SaveParsedFactTests(unittest.TestCase):
             test_subject_concept, test_object_concept, relationship_name='is',
             relationship_number=None, new_fact_id=ANY)
 
-    def test_parse_error__failed_concept(self, verify_data, ensure_typed_concept, reorder_concepts,
+    def test_invalid_fact_data_error__failed_concept(self, verify_data, ensure_typed_concept, 
+                                                     reorder_concepts,
                                          filter_entities, ensure_relationship, merge_to_session):
-        """Verify ParseError if Concept cannot be created.
+        """Verify ParseFactError if Concept cannot be created.
         """
         # Set up mocks and test data
         test_data = self._get_wit_response_data('animal_species_fact_data')
         ensure_typed_concept.return_value = None
 
         # Make call
-        self.assertRaisesRegexp(FactManager.ParseError,            
+        self.assertRaisesRegexp(InvalidFactDataError,            
                                 "Invalid parsed fact data: Invalid data for concept_type 'species'",
                                 FactManager._save_parsed_fact,
                                 parsed_data=test_data)
 
-    def test_parse_error__too_many_concepts(self, verify_data, ensure_typed_concept, 
+    def test_invalid_fact_data_error__too_many_concepts(self, verify_data, ensure_typed_concept, 
                                             reorder_concepts, filter_entities, ensure_relationship,
                                             merge_to_session):
-        """Verify ParseError if more than two concept entities are present in parsed data.
+        """Verify ParseFactError if more than two concept entities are present in parsed data.
         """
         # Set up mocks and test data
         test_data = self._get_wit_response_data('animal_species_fact_data')
@@ -192,15 +199,15 @@ class SaveParsedFactTests(unittest.TestCase):
         ensure_typed_concept.return_value = Mock(name='concept', concept_name='mock_concept')
 
         # Make call
-        self.assertRaisesRegexp(FactManager.ParseError,
+        self.assertRaisesRegexp(InvalidFactDataError,
                                 "Invalid parsed fact data: Expected 2 concept entities, found 3: ",
                                 FactManager._save_parsed_fact,
                                 parsed_data=test_data)
 
-    def test_parse_error__reorder_concept_failure(self, verify_data, ensure_typed_concept, 
+    def test_invalid_fact_data_error__reorder_concept_failure(self, verify_data, ensure_typed_concept, 
                                                   reorder_concepts, filter_entities, 
                                                   ensure_relationship, merge_to_session):
-        """Verify ParseError if _reorder_concepts_by_subject raises ValueError.
+        """Verify ParseFactError if _reorder_concepts_by_subject raises ValueError.
         """
         # Set up mocks and test data
         test_data = self._get_wit_response_data('animal_species_fact_data')
@@ -209,7 +216,7 @@ class SaveParsedFactTests(unittest.TestCase):
         reorder_concepts.side_effect = ValueError("Bad dog. No biscuit.")
 
         # Make call
-        self.assertRaisesRegexp(FactManager.ParseError,
+        self.assertRaisesRegexp(InvalidFactDataError,
                                 "Invalid parsed fact data: Bad dog. No biscuit.",
                                 FactManager._save_parsed_fact,
                                 parsed_data=test_data)
@@ -217,10 +224,10 @@ class SaveParsedFactTests(unittest.TestCase):
         # Verify mocks
         reorder_concepts.assert_called_once_with(mock_concepts)
 
-    def test_parse_error__multiple_relationships(self, verify_data, ensure_typed_concept, 
+    def test_invalid_fact_data_error__multiple_relationships(self, verify_data, ensure_typed_concept, 
                                                  reorder_concepts, filter_entities, 
                                                  ensure_relationship, merge_to_session):
-        """Verify ParseError if multiple relationship entities are present in parsed data.
+        """Verify ParseFactError if multiple relationship entities are present in parsed data.
         """
         # Set up mocks and test data
         test_data = self._get_wit_response_data('animal_species_fact_data')
@@ -233,15 +240,15 @@ class SaveParsedFactTests(unittest.TestCase):
         # Make call
         expected_msg = ("Invalid parsed fact data: Expected 1 relationship entity for "
                         "subject 'otter' and object 'mammal'; found 2")
-        self.assertRaisesRegexp(FactManager.ParseError,
+        self.assertRaisesRegexp(InvalidFactDataError,
                                 expected_msg,
                                 FactManager._save_parsed_fact,
                                 parsed_data=test_data)
 
-    def test_parse_error__zero_relationships(self, verify_data, ensure_typed_concept, 
+    def test_invalid_fact_data_error__zero_relationships(self, verify_data, ensure_typed_concept, 
                                              reorder_concepts, filter_entities, 
                                              ensure_relationship, merge_to_session):
-        """Verify ParseError if zero relationship entities are present in parsed data.
+        """Verify ParseFactError if zero relationship entities are present in parsed data.
         
         Note that if data has no relationship entity, verification step will fail, but since
         the code handles it, might as well test it.
@@ -257,24 +264,24 @@ class SaveParsedFactTests(unittest.TestCase):
         # Make call
         expected_msg = ("Invalid parsed fact data: Expected 1 relationship entity for "
                         "subject 'otter' and object 'mammal'; found 0")
-        self.assertRaisesRegexp(FactManager.ParseError,
+        self.assertRaisesRegexp(InvalidFactDataError,
                                 expected_msg,
                                 FactManager._save_parsed_fact,
                                 parsed_data=test_data)
 
-    def test_conflict_error(self, verify_data, ensure_typed_concept, reorder_concepts,
-                            filter_entities, ensure_relationship, merge_to_session):
-        """Verify ConflictError from _ensure_relationship bubbles up.
+    def test_fact_conflict_error(self, verify_data, ensure_typed_concept, reorder_concepts,
+                                 filter_entities, ensure_relationship, merge_to_session):
+        """Verify FactConflictError from _ensure_relationship bubbles up.
         """
         # Set up mocks and test data
         test_data = self._get_wit_response_data('animal_species_fact_data')
         mock_concepts = [Mock(name='concept_1'), Mock(name='concept_2')]
         reorder_concepts.return_value = mock_concepts 
         filter_entities.return_value = (['is'], [])
-        ensure_relationship.side_effect = FactManager.ConflictError('boo hoo')
+        ensure_relationship.side_effect = FactConflictError('boo hoo')
 
         # Make call
-        self.assertRaisesRegexp(FactManager.ConflictError,
+        self.assertRaisesRegexp(FactConflictError,
                                 'boo hoo',
                                 FactManager._save_parsed_fact,
                                 parsed_data=test_data)

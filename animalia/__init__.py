@@ -28,7 +28,7 @@ logger.setLevel(logging.DEBUG)
 
 
 # Import after app has been created
-from fact_manager import FactManager
+from fact_manager import FactManager, IncomingFactError
 
 
 @app.route("/")
@@ -67,7 +67,7 @@ def post_fact():
         try:
             fact = FactManager.fact_from_sentence(fact_sentence)
             response_data = {'id': str(fact.fact_id)}
-        except FactManager.IncomingFactError as ex:
+        except IncomingFactError as ex:
             logger.exception(ex)
             response_data = {'message': 'Failed to parse your fact',
                              'details': '{0}'.format(ex)}
