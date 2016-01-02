@@ -31,12 +31,17 @@ class FactManager(object):
     # Initialize wit exactly once
     _wit_initialized = False
 
-    class ConflictError(Exception):
+    class IncomingFactError(Exception):
+        """Base class for errors processing incoming fact.
+        """
+        pass
+
+    class ConflictError(IncomingFactError):
         """To raise if provided fact conflicts with an existing fact.
         """
         pass
 
-    class ParseError(Exception):
+    class ParseError(IncomingFactError):
         """To raise if user-supplied fact sentence cannot be parsed or if parsed data is invalid.
         """
         pass
@@ -57,6 +62,8 @@ class FactManager(object):
 
         :rtype: :py:class:`~fact_model.IncomingFact`
         :return: IncomingFact created from provided sentence
+        :raise: :py:class:`FactManager.ParseError`
+        :raise: :py:class:`FactManager.ConflictError`
 
         :type sentence: unicode
         :arg sentence: fact sentence in supported format
@@ -107,9 +114,9 @@ class FactManager(object):
         :arg concept_name: name of concept
 
         """
-        concept = Concept.select_by_name(concept_name)
+        concept = fact_model.Concept.select_by_name(concept_name)
         if not concept:
-            concept = Concept(concept_name=concept_name)
+            concept = fact_model.Concept(concept_name=concept_name)
         return concept
 
     @classmethod
@@ -134,7 +141,7 @@ class FactManager(object):
         typed_concept = None
 
         subjects, suggested_subjects = cls._filter_entity_values(concept_data)
-        for subject in suggested:
+        for subject in suggested_subjects:
             logger.warn("Skipping suggested subject '{0}' for concept_type '{1}'".format(
                     subject, concept_type))
 
@@ -262,7 +269,7 @@ class FactManager(object):
         :arg intent: intent returned by wit.ai; e.g. 'animal_place_fact'
 
         """
-        return (outcome.get('intent') or '').endswith('fact')
+        return intent.endswith('fact')
 
     @classmethod
     def _merge_to_db_session(cls, model):
@@ -432,9 +439,9 @@ class FactManager(object):
 
         Run checks that do not require much processing:
         * Presence of '_text' attribute
+        * Presence of exactly one outcome
         * Intent looks like fact
         * Confidence rating meets threshold
-        * Presence of exactly one outcome
         * Outcome has sufficient entities
         * Outcome has exactly one relationship entity
 
@@ -450,6 +457,12 @@ class FactManager(object):
         if not sentence:
             raise_fn("No _text attribute")
 
+        # Expect exactly one outcome
+        outcomes = parsed_fact_data.get('outcomes') or []
+        if len(outcomes) != 1:
+            raise_fn("Expected 1 outcome, found {0}".format(len(outcomes)))
+        outcome = outcomes[0]
+
         # Verify that parsed data is fact and not query
         if not cls._is_fact_intent(outcome['intent']):
             raise_fn("Non-fact outcome intent '{0}'".format(outcome['intent']))
@@ -458,12 +471,6 @@ class FactManager(object):
         if outcome['confidence'] < cls.CONFIDENCE_THRESHOLD:
             raise_fn("Confidence={0}, threshold={1}".format(
                     outcome['confidence'], cls.CONFIDENCE_THRESHOLD))
-
-        # Expect exactly one outcome
-        outcomes = parsed_fact_data.get('outcomes') or []
-        if len(outcomes) != 1:
-            raise_fn("Expected 1 outcome, found {0}".format(len(outcomes)))
-        outcome = outcomes[0]
 
         # Expect at least 3 entities overall: relationship, subject and object
         entities = outcome.get('entities') or {}

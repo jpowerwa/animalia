@@ -6,6 +6,7 @@
 
 from __future__ import unicode_literals
 
+import logging
 import json
 import uuid
 
@@ -14,6 +15,17 @@ from flask.ext.api import status
 
 # Create Flask app
 app = flask.Flask(__name__)
+
+# Init logging
+import logging
+
+ch = logging.StreamHandler()
+ch.setFormatter(logging.Formatter(fmt='%(asctime)s %(name)s [%(levelname)s] %(message)s',
+                                  datefmt='%Y-%m-%d %H:%M:%S'))
+logging.root.addHandler(ch)
+logger = logging.getLogger('animalia')
+logger.setLevel(logging.DEBUG)
+
 
 # Import after app has been created
 from fact_manager import FactManager
@@ -55,8 +67,10 @@ def post_fact():
         try:
             fact = FactManager.fact_from_sentence(fact_sentence)
             response_data = {'id': str(fact.fact_id)}
-        except FactManager.ParseError:
-            response_data = {'message': 'Failed to parse your fact'}
+        except FactManager.IncomingFactError as ex:
+            logger.exception(ex)
+            response_data = {'message': 'Failed to parse your fact',
+                             'details': '{0}'.format(ex)}
             response_code = status.HTTP_400_BAD_REQUEST
     return json.dumps(response_data), response_code
 
