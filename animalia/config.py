@@ -13,5 +13,6 @@ class Config(object):
     wit_app_id = '56300313-4dfd-4da3-a74d-2ae701d1cfbb'
     
     parsed_data_confidence_threshold = 0.8
-    parsed_data_subject_concepts = ['animal']
+    parsed_data_relationship_entity_types = ['relationship', 'number']
+    parsed_data_subject_entity_types = ['animal']
     

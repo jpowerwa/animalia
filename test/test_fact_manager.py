@@ -27,15 +27,10 @@ import wit_responses
 logger.setLevel(logging.WARN)
 
 @patch.object(FactManager, '_merge_to_db_session')
-@patch.object(FactManager, '_ensure_relationship')
-@patch.object(FactManager, '_filter_entity_values')
-@patch.object(FactManager, '_reorder_concepts_by_subject')
-@patch.object(FactManager, '_ensure_concept_with_type')
+@patch.object(FactManager, '_relationship_from_entity_data')
 @patch.object(FactManager, '_verify_parsed_fact_data')
 class SaveParsedFactTests(unittest.TestCase):
     """Verify behavior of FactManager._save_parsed_fact.
-
-    This needs a lot of mocks, but that is okay since it is a workhorse of a method.
     """
 
     def _get_wit_response_data(self, key):
@@ -43,72 +38,13 @@ class SaveParsedFactTests(unittest.TestCase):
         """
         return copy.deepcopy(getattr(wit_responses, key))
 
-
-    def test_save_parsed_fact(self, verify_data, ensure_typed_concept, reorder_concepts,
-                              filter_entities, ensure_relationship, merge_to_session):
-        """Verify calls made by _save_parsed_fact for a relationship with subject and object.
+    def test_save_parsed_fact(self, verify_data, create_relationship, merge_to_session):
+        """Verify calls made by _save_parsed_fact.
         """
         # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_species_fact_data')
-
-        test_subject_concept = fact_model.Concept(concept_name='otter')
-        test_object_concept = fact_model.Concept(concept_name='mammal')
-        ensure_typed_concept.side_effect = [test_subject_concept, test_object_concept]
-        reorder_concepts.return_value = [test_subject_concept, test_object_concept]
-        filter_entities.return_value = (['is a'], [])
-        mock_relationship = Mock(name='relationship')
-        ensure_relationship.return_value = mock_relationship
-        mock_saved_relationship = Mock(name='saved_relationship')
-        mock_saved_fact = Mock(name='saved_fact')
-        merge_to_session.side_effect = [mock_saved_relationship, mock_saved_fact]
-
-        # Make call
-        saved_fact = FactManager._save_parsed_fact(parsed_data=test_data)
-        
-        # Verify result
-        self.assertEqual(mock_saved_fact, saved_fact)
-
-        # Verify mocks
-        call_args = verify_data.call_args
-        self.assertEqual(test_data, call_args[0][0])
-        self.assertTrue(hasattr(call_args[0][1], '__call__'))
-
-        call_args_list = ensure_typed_concept.call_args_list
-        self.assertEqual(2, len(call_args_list))
-        self.assertEqual(set(['otter', 'mammal']), 
-                         set([call_args[0][0][0]['value'] for call_args in call_args_list]))
-        self.assertEqual(set(['animal', 'species']), 
-                         set([call_args[0][1] for call_args in call_args_list]))
-
-        reorder_concepts.assert_called_once_with([test_subject_concept, test_object_concept])
-        filter_entities.assert_called_once_with([{'type': 'value', 'value': 'is a'}])
-        ensure_relationship.assert_called_once_with(
-            test_subject_concept, test_object_concept, relationship_name='is a', 
-            relationship_number=None, new_fact_id=ANY)
-        new_fact_id = ensure_relationship.call_args[1]['new_fact_id']
-        
-        call_args_list = merge_to_session.call_args_list
-        self.assertEqual(2, len(call_args_list))
-        self.assertEqual(mock_relationship, call_args_list[0][0][0])
-        incoming_fact_arg = call_args_list[1][0][0]
-        self.assertEqual(new_fact_id, incoming_fact_arg.fact_id)
-        self.assertEqual('the otter is a mammal', incoming_fact_arg.fact_text)
-        self.assertEqual(json.dumps(test_data), incoming_fact_arg.parsed_fact)
-
-    def test_relationship_with_count(self, verify_data, ensure_typed_concept, reorder_concepts,
-                                     filter_entities, ensure_relationship, merge_to_session):
-        """Verify calls made by _save_parsed_fact for a relationship with number entity.
-        """
-        # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_leg_fact_data')
-
-        test_subject_concept = fact_model.Concept(concept_name='otter')
-        test_object_concept = fact_model.Concept(concept_name='legs')
-        ensure_typed_concept.side_effect = [test_subject_concept, test_object_concept]
-        reorder_concepts.return_value = [test_subject_concept, test_object_concept]
-        filter_entities.side_effect = [(['has'], []), ([4], [])]
-        mock_relationship = Mock(name='relationship')
-        ensure_relationship.return_value = mock_relationship
+        test_data = copy.deepcopy(wit_responses.animal_species_fact_data)
+        verify_data.return_value = test_data['outcomes'][0]
+        create_relationship.return_value = mock_relationship = Mock(name='relationship')
         mock_saved_relationship = Mock(name='saved_relationship')
         mock_saved_fact = Mock(name='saved_fact')
         merge_to_session.side_effect = [mock_saved_relationship, mock_saved_fact]
@@ -121,173 +57,312 @@ class SaveParsedFactTests(unittest.TestCase):
 
         # Verify mocks
         self.assertEqual(1, verify_data.call_count)
+        call_args = verify_data.call_args
+        self.assertEqual(test_data, call_args[0][0])
+        self.assertTrue(hasattr(call_args[0][1], '__call__'))
 
-        call_args_list = ensure_typed_concept.call_args_list
+        self.assertEqual(1, create_relationship.call_count)
+        call_args = create_relationship.call_args
+        self.assertEqual(test_data['outcomes'][0]['entities'], call_args[0][0])
+        self.assertTrue(hasattr(call_args[0][1], '__call__'))
+        new_fact_id = call_args[1]['new_fact_id']
+        self.assertTrue(isinstance(new_fact_id, uuid.UUID))
+        
+        call_args_list = merge_to_session.call_args_list
         self.assertEqual(2, len(call_args_list))
-        self.assertEqual(set(['otter', 'legs']), 
-                         set([call_args[0][0][0]['value'] for call_args in call_args_list]))
-        self.assertEqual(set(['animal', 'body_part']), 
-                         set([call_args[0][1] for call_args in call_args_list]))
+        self.assertEqual(mock_relationship, call_args_list[0][0][0])
+        incoming_fact_arg = call_args_list[1][0][0]
+        self.assertEqual(new_fact_id, incoming_fact_arg.fact_id)
+        self.assertEqual('the otter is a mammal', incoming_fact_arg.fact_text)
+        self.assertEqual(json.dumps(test_data), incoming_fact_arg.parsed_fact)
 
-        reorder_concepts.assert_called_once_with([test_subject_concept, test_object_concept])
 
+@patch.object(FactManager, '_ensure_relationship')
+@patch.object(FactManager, '_filter_entity_values')
+@patch.object(FactManager, '_concepts_from_entity_data')
+class RelationshipFromEntityDataTests(unittest.TestCase):
+    """Verify behavior of FactManager._relationship_from_entity_data.
+    """
+
+    def _get_entity_data(self, key):
+        """Return JSON for 'entities' element of captured wit.ai response data with specified name.
+        """
+        response_data = getattr(wit_responses, key)
+        return copy.deepcopy(response_data['outcomes'][0]['entities'])
+
+    def test_relationship_from_entity_data(self, create_concepts, filter_entities, 
+                                           ensure_relationship):
+        """Verify calls made by _relationship_from_entity_data.
+        """
+        # Set up mocks and test data
+        test_data = self._get_entity_data('animal_species_fact_data')
+        mock_raise_fn = Mock(name='raise_fn')
+        mock_fact_id = Mock(name='fact_id')
+        mock_subj_concept = Mock(name='subj_concept')
+        mock_obj_concept = Mock(name='obj_concept')
+        create_concepts.return_value = (mock_subj_concept, mock_obj_concept)
+        filter_entities.return_value = (['whatever'], [])
+        ensure_relationship.return_value = mock_relationship = Mock(name='relationship')
+
+        # Make call
+        relationship = FactManager._relationship_from_entity_data(
+            test_data, mock_raise_fn, new_fact_id=mock_fact_id)
+        
+        # Verify result
+        self.assertEqual(mock_relationship, relationship)
+
+        # Verify mocks
+        create_concepts.assert_called_once_with(test_data, mock_raise_fn, new_fact_id=mock_fact_id)
+        filter_entities.assert_called_once_with([{'type': 'value', 'value': 'is a'}])
+        ensure_relationship.assert_called_once_with(mock_subj_concept, 
+                                                    mock_obj_concept, 
+                                                    relationship_name='whatever', 
+                                                    relationship_number=None, 
+                                                    new_fact_id=mock_fact_id)
+
+    def test_with_count(self, create_concepts, filter_entities, ensure_relationship):
+        """Verify calls made by _relationship_from_entity_data for relationship with number entity.
+        """
+        # Set up mocks and test data
+        test_data = self._get_entity_data('animal_leg_fact_data')
+        mock_fact_id = Mock(name='fact_id')
+        mock_subj_concept = Mock(name='subj_concept')
+        mock_obj_concept = Mock(name='obj_concept')
+        create_concepts.return_value = (mock_subj_concept, mock_obj_concept)
+        filter_entities.side_effect = [(['whatever'], []), ([14], [])]
+        ensure_relationship.return_value = mock_relationship = Mock(name='relationship')
+
+        # Make call
+        relationship = FactManager._relationship_from_entity_data(
+            test_data, Mock(name='raise_fn'), new_fact_id=mock_fact_id)
+        
+        # Verify result
+        self.assertEqual(mock_relationship, relationship)
+
+        # Verify mocks
         call_args_list = filter_entities.call_args_list
         self.assertEqual(2, len(call_args_list))
         self.assertEqual([{'type': 'value', 'value': 'has'}], call_args_list[0][0][0])
         self.assertEqual([{'type': 'value', 'value': 4}], call_args_list[1][0][0])
 
-        ensure_relationship.assert_called_once_with(
-            test_subject_concept, test_object_concept, relationship_name='has', 
-            relationship_number=4, new_fact_id=ANY)
-        new_fact_id = ensure_relationship.call_args[1]['new_fact_id']
+        ensure_relationship.assert_called_once_with(mock_subj_concept, 
+                                                    mock_obj_concept, 
+                                                    relationship_name='whatever', 
+                                                    relationship_number=14,
+                                                    new_fact_id=mock_fact_id)
 
-        self.assertEqual(2, merge_to_session.call_count)
-        incoming_fact_arg = merge_to_session.call_args_list[1][0][0]
-        self.assertEqual(new_fact_id, incoming_fact_arg.fact_id)
-        self.assertEqual('the otter has four legs', incoming_fact_arg.fact_text)
-        self.assertEqual(json.dumps(test_data), incoming_fact_arg.parsed_fact)
-
-    def test_with_suggested_relationship(self, verify_data, ensure_typed_concept, reorder_concepts,
-                                         filter_entities, ensure_relationship, merge_to_session):
-        """Verify calls made by _save_parsed_fact for a relationship with suggested entity.
+    def test_with_suggested_relationship(self, create_concepts, filter_entities,
+                                         ensure_relationship):
+        """Verify calls made by _relationship_from_entity_data with suggested relationship entity.
         """
         # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_species_fact_with_suggestion_data')
-
-        test_subject_concept = fact_model.Concept(concept_name='otter')
-        test_object_concept = fact_model.Concept(concept_name='mammal')
-        reorder_concepts.return_value = [test_subject_concept, test_object_concept]
-        filter_entities.return_value = (['is'], ['a'])
+        test_data = self._get_entity_data('animal_species_fact_with_suggestion_data')
+        mock_fact_id = Mock(name='fact_id')
+        mock_subj_concept = Mock(name='subj_concept', concept_name='otter')
+        mock_obj_concept = Mock(name='obj_concept', concept_name='mammal')
+        create_concepts.return_value = (mock_subj_concept, mock_obj_concept)
+        filter_entities.return_value = (['whatever'], ['just an idea'])
+        ensure_relationship.return_value = mock_relationship = Mock(name='relationship')
 
         # Make call
         with patch.object(logger, 'warn') as log_warn:
-            FactManager._save_parsed_fact(parsed_data=test_data)
-        expected_warning = ("Skipping suggested relationship '{0}' "
-                            "for subject '{1}' and object '{2}'").format('a', 'otter', 'mammal')
-        log_warn.assert_called_once_with(expected_warning)
+            FactManager._relationship_from_entity_data(
+                test_data, Mock(name='raise_fn'), new_fact_id=mock_fact_id)
+        msg = "Skipping suggested relationship '{0}' for subject '{1}' and object '{2}'".format(
+            'just an idea', 'otter', 'mammal')
+        log_warn.assert_called_once_with(msg)
 
         # Verify mocks
         filter_entities.assert_called_once_with(
             [{'suggested': True, 'type': 'value', 'value': 'a'}, {'type': 'value', 'value': 'is'}])
-        ensure_relationship.assert_called_once_with(
-            test_subject_concept, test_object_concept, relationship_name='is',
-            relationship_number=None, new_fact_id=ANY)
+        ensure_relationship.assert_called_once_with(mock_subj_concept, 
+                                                    mock_obj_concept, 
+                                                    relationship_name='whatever',
+                                                    relationship_number=None, 
+                                                    new_fact_id=mock_fact_id)
 
-    def test_invalid_fact_data_error__failed_concept(self, verify_data, ensure_typed_concept, 
-                                                     reorder_concepts,
-                                         filter_entities, ensure_relationship, merge_to_session):
-        """Verify ParseFactError if Concept cannot be created.
+    def test_error__multiple_relationships(self, create_concepts, filter_entities,
+                                           ensure_relationship):
+        """Verify error if multiple relationship entities are present in parsed data.
         """
-        # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_species_fact_data')
-        ensure_typed_concept.return_value = None
+        test_data = self._get_entity_data('animal_species_fact_data')
+        mock_raise_fn = Mock(name='raise_fn', side_effect=ValueError)
+        mock_subj_concept = Mock(name='subj_concept', concept_name='otter')
+        mock_obj_concept = Mock(name='obj_concept', concept_name='mammal')
+        create_concepts.return_value = (mock_subj_concept, mock_obj_concept)
+        filter_entities.return_value = (['whatever', 'whoever'], [])
 
         # Make call
-        self.assertRaisesRegexp(InvalidFactDataError,            
-                                "Invalid parsed fact data: Invalid data for concept_type 'species'",
-                                FactManager._save_parsed_fact,
-                                parsed_data=test_data)
-
-    def test_invalid_fact_data_error__too_many_concepts(self, verify_data, ensure_typed_concept, 
-                                            reorder_concepts, filter_entities, ensure_relationship,
-                                            merge_to_session):
-        """Verify ParseFactError if more than two concept entities are present in parsed data.
-        """
-        # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_species_fact_data')
-        test_data['outcomes'][0]['entities']['new_entity'] = [{'type': 'value', 'value': 'foo'}]
-        ensure_typed_concept.return_value = Mock(name='concept', concept_name='mock_concept')
-
-        # Make call
-        self.assertRaisesRegexp(InvalidFactDataError,
-                                "Invalid parsed fact data: Expected 2 concept entities, found 3: ",
-                                FactManager._save_parsed_fact,
-                                parsed_data=test_data)
-
-    def test_invalid_fact_data_error__reorder_concept_failure(self, verify_data, ensure_typed_concept, 
-                                                  reorder_concepts, filter_entities, 
-                                                  ensure_relationship, merge_to_session):
-        """Verify ParseFactError if _reorder_concepts_by_subject raises ValueError.
-        """
-        # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_species_fact_data')
-        mock_concepts = [Mock(name='concept_1'), Mock(name='concept_2')]
-        ensure_typed_concept.side_effect = mock_concepts
-        reorder_concepts.side_effect = ValueError("Bad dog. No biscuit.")
-
-        # Make call
-        self.assertRaisesRegexp(InvalidFactDataError,
-                                "Invalid parsed fact data: Bad dog. No biscuit.",
-                                FactManager._save_parsed_fact,
-                                parsed_data=test_data)
+        self.assertRaises(ValueError,
+                          FactManager._relationship_from_entity_data,
+                          test_data, 
+                          mock_raise_fn, 
+                          new_fact_id=Mock()) 
 
         # Verify mocks
-        reorder_concepts.assert_called_once_with(mock_concepts)
+        mock_raise_fn.assert_called_once_with(
+            "Expected 1 relationship entity for subject 'otter' and object 'mammal'; found 2")
 
-    def test_invalid_fact_data_error__multiple_relationships(self, verify_data, ensure_typed_concept, 
-                                                 reorder_concepts, filter_entities, 
-                                                 ensure_relationship, merge_to_session):
-        """Verify ParseFactError if multiple relationship entities are present in parsed data.
-        """
-        # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_species_fact_data')
-        test_concepts = [fact_model.Concept(concept_name='otter'), 
-                         fact_model.Concept(concept_name='mammal')]
-        ensure_typed_concept.side_effect = test_concepts
-        reorder_concepts.return_value = test_concepts
-        filter_entities.return_value = (['is a', 'foo'], [])
-
-        # Make call
-        expected_msg = ("Invalid parsed fact data: Expected 1 relationship entity for "
-                        "subject 'otter' and object 'mammal'; found 2")
-        self.assertRaisesRegexp(InvalidFactDataError,
-                                expected_msg,
-                                FactManager._save_parsed_fact,
-                                parsed_data=test_data)
-
-    def test_invalid_fact_data_error__zero_relationships(self, verify_data, ensure_typed_concept, 
-                                             reorder_concepts, filter_entities, 
-                                             ensure_relationship, merge_to_session):
-        """Verify ParseFactError if zero relationship entities are present in parsed data.
+    def test_error__zero_relationships(self, create_concepts, filter_entities, ensure_relationship):
+        """Verify error if zero relationship entities are present in parsed data.
         
         Note that if data has no relationship entity, verification step will fail, but since
         the code handles it, might as well test it.
         """
-        # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_species_fact_data')
-        test_concepts = [fact_model.Concept(concept_name='otter'), 
-                         fact_model.Concept(concept_name='mammal')]
-        ensure_typed_concept.side_effect = test_concepts
-        reorder_concepts.return_value = test_concepts
+        test_data = self._get_entity_data('animal_species_fact_data')
+        mock_raise_fn = Mock(name='raise_fn', side_effect=ValueError)
+        mock_subj_concept = Mock(name='subj_concept', concept_name='otter')
+        mock_obj_concept = Mock(name='obj_concept', concept_name='mammal')
+        create_concepts.return_value = (mock_subj_concept, mock_obj_concept)
         filter_entities.return_value = ([], [])
 
         # Make call
-        expected_msg = ("Invalid parsed fact data: Expected 1 relationship entity for "
-                        "subject 'otter' and object 'mammal'; found 0")
-        self.assertRaisesRegexp(InvalidFactDataError,
-                                expected_msg,
-                                FactManager._save_parsed_fact,
-                                parsed_data=test_data)
+        self.assertRaises(ValueError,
+                          FactManager._relationship_from_entity_data,
+                          test_data, 
+                          mock_raise_fn, 
+                          new_fact_id=Mock()) 
 
-    def test_fact_conflict_error(self, verify_data, ensure_typed_concept, reorder_concepts,
-                                 filter_entities, ensure_relationship, merge_to_session):
-        """Verify FactConflictError from _ensure_relationship bubbles up.
+        # Verify mocks
+        mock_raise_fn.assert_called_once_with(
+            "Expected 1 relationship entity for subject 'otter' and object 'mammal'; found 0")
+
+
+
+@patch.object(FactManager, '_ensure_concept_with_type')
+class ConceptsFromEntityDataTests(unittest.TestCase):
+    """Verify behavior of FactManager._concept_from_entity_data
+    """
+
+    def setUp(self):
+        """Allow tests to alter FactManager.SUBJECT_ENTITY_TYPES without impacting other tests.
+        """
+        self.orig_subject_types = FactManager.SUBJECT_ENTITY_TYPES
+
+    def tearDown(self):
+        FactManager.SUBJECT_ENTITY_TYPES = self.orig_subject_types
+
+    def _get_entity_data(self, key):
+        """Return JSON for 'entities' element of captured wit.ai response data with specified name.
+        """
+        response_data = getattr(wit_responses, key)
+        return copy.deepcopy(response_data['outcomes'][0]['entities'])
+
+    def test_concepts_from_entity_data(self, ensure_typed_concept):
+        """Verify calls made by _concepts_from_entity_data.
         """
         # Set up mocks and test data
-        test_data = self._get_wit_response_data('animal_species_fact_data')
-        mock_concepts = [Mock(name='concept_1'), Mock(name='concept_2')]
-        reorder_concepts.return_value = mock_concepts 
-        filter_entities.return_value = (['is'], [])
-        ensure_relationship.side_effect = FactConflictError('boo hoo')
+        test_data = self._get_entity_data('animal_species_fact_data')
+        mock_raise_fn = Mock(name='raise_fn')
+        mock_fact_id = Mock(name='fact_id')
+        mock_concepts = [Mock(name='concept_1', concept_name='concept_1'),
+                         Mock(name='concept_2', concept_name='concept_2')]
+        ensure_typed_concept.side_effect = mock_concepts
 
         # Make call
-        self.assertRaisesRegexp(FactConflictError,
-                                'boo hoo',
-                                FactManager._save_parsed_fact,
-                                parsed_data=test_data)
-        # Verify mocks
-        ensure_relationship.assert_called_once_with(
-            mock_concepts[0], mock_concepts[1], relationship_name='is',
-            relationship_number=None, new_fact_id=ANY)
+        subj_concept, obj_concept = FactManager._concepts_from_entity_data(
+            test_data, mock_raise_fn, new_fact_id=mock_fact_id)
+        
+        # Verify result
+        self.assertEqual(set([subj_concept, obj_concept]), set(mock_concepts))
 
+        # Verify mocks
+        call_args_list = ensure_typed_concept.call_args_list
+        self.assertEqual(2, len(call_args_list))
+        self.assertEqual(set(['otter', 'mammal']), 
+                         set([call_args[0][0][0]['value'] for call_args in call_args_list]))
+        self.assertEqual(set(['animal', 'species']), 
+                         set([call_args[0][1] for call_args in call_args_list]))
+        for call_args in call_args_list:
+            self.assertEqual(mock_fact_id, call_args[1]['new_fact_id'])
+
+    def test_error__invalid_concept_data(self, ensure_typed_concept):
+        """Verify error if ensure_concept_with_type does not return Concept.
+        """
+        # Set up mocks and test data
+        test_data = self._get_entity_data('animal_species_fact_data')
+        mock_raise_fn = Mock(name='raise_fn', side_effect=ValueError)
+        ensure_typed_concept.return_value = None
+
+        # Make call
+        self.assertRaises(ValueError,
+                          FactManager._concepts_from_entity_data,
+                          test_data, 
+                          mock_raise_fn, 
+                          new_fact_id=Mock())
+
+        self.assertEqual(1, mock_raise_fn.call_count)
+        error_msg_arg = mock_raise_fn.call_args[0][0]
+        self.assertTrue(error_msg_arg.startswith("Invalid data for concept_type"))
+        self.assertTrue(("concept_type 'species'" in error_msg_arg 
+                         or "concept_type 'animal'" in error_msg_arg))
+
+    def test_error__multiple_subject_concepts(self, ensure_typed_concept):
+        """Verify error if multiple subject concepts are found.
+        """
+        # Set up mocks and test data
+        test_data = self._get_entity_data('animal_species_fact_data')
+        FactManager.SUBJECT_ENTITY_TYPES = ('animal', 'vegetable')
+        test_data['vegetable'] = [{'type': 'value', 'value': 'potato'}]
+        mock_raise_fn = Mock(name='raise_fn', side_effect=ValueError)
+        ensure_typed_concept.return_value = Mock(name='concept', concept_name='bunny')
+
+        # Make call
+        self.assertRaises(ValueError,
+                          FactManager._concepts_from_entity_data,
+                          test_data, 
+                          mock_raise_fn, 
+                          new_fact_id=Mock())
+        mock_raise_fn.assert_called_once_with("Found multiple subject concepts: bunny, bunny")
+
+    def test_error__no_subject_concept(self, ensure_typed_concept):
+        """Verify error if no subject concept is found.
+        """
+        # Set up mocks and test data
+        test_data = self._get_entity_data('animal_species_fact_data')
+        del test_data['animal']
+        mock_raise_fn = Mock(name='raise_fn', side_effect=ValueError)
+        ensure_typed_concept.return_value = Mock(name='concept', concept_name='bunny')
+
+        # Make call
+        self.assertRaises(ValueError,
+                          FactManager._concepts_from_entity_data,
+                          test_data, 
+                          mock_raise_fn, 
+                          new_fact_id=Mock())
+        mock_raise_fn.assert_called_once_with("No subject concept found")
+
+    def test_error__multiple_object_concepts(self, ensure_typed_concept):
+        """Verify error if multiple subject concepts are found.
+        """
+        # Set up mocks and test data
+        test_data = self._get_entity_data('animal_species_fact_data')
+        test_data['vegetable'] = [{'type': 'value', 'value': 'potato'}]
+        mock_raise_fn = Mock(name='raise_fn', side_effect=ValueError)
+        ensure_typed_concept.return_value = Mock(name='concept', concept_name='bunny')
+
+        # Make call
+        self.assertRaises(ValueError,
+                          FactManager._concepts_from_entity_data,
+                          test_data, 
+                          mock_raise_fn, 
+                          new_fact_id=Mock())
+        mock_raise_fn.assert_called_once_with("Found multiple object concepts: bunny, bunny")
+        
+    def test_error__no_object_concept(self, ensure_typed_concept):
+        """Verify error if no object concept is found.
+        """
+        # Set up mocks and test data
+        test_data = self._get_entity_data('animal_species_fact_data')
+        del test_data['species']
+        mock_raise_fn = Mock(name='raise_fn', side_effect=ValueError)
+        ensure_typed_concept.return_value = Mock(name='concept', concept_name='bunny')
+
+        # Make call
+        self.assertRaises(ValueError,
+                          FactManager._concepts_from_entity_data,
+                          test_data, 
+                          mock_raise_fn, 
+                          new_fact_id=Mock())
+        mock_raise_fn.assert_called_once_with("No object concept found")
 
