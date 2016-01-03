@@ -78,11 +78,11 @@ class FactManager(object):
         sentence = cls._normalize_sentence(sentence)
         incoming_fact = fact_model.IncomingFact.select_by_text(sentence)
         if not incoming_fact:
-            cls._ensure_wit_initialized()
-            wit_response = wit.text_query(sentence, Config.wit_access_token)
+            wit_response = cls._query_wit(sentence)
             # TODO: Handle wit parse error
             parsed_data = json.loads(wit_response)
             incoming_fact = cls._save_parsed_fact(parsed_data=parsed_data)
+            fact_model.db.session.commit()
         return incoming_fact
 
     @classmethod
@@ -287,14 +287,6 @@ class FactManager(object):
         return relationship
 
     @classmethod
-    def _ensure_wit_initialized(cls):
-        """Ensure that proxy to wit.ai is ready to be used.
-        """
-        if not cls._wit_initialized:
-            wit.init()   
-            cls._wit_initialized = True
-
-    @classmethod
     def _filter_entity_values(cls, entity_data):
         """Return lists of strings that are values of 'value' entities.
 
@@ -338,7 +330,7 @@ class FactManager(object):
         :arg model: instance to merge to db session
 
         """
-        return db.session.merge(model)
+        return fact_model.db.session.merge(model)
 
     @classmethod
     def _normalize_sentence(cls, sentence):
@@ -352,6 +344,23 @@ class FactManager(object):
 
         """
         return sentence.lower()
+
+    @classmethod
+    def _query_wit(cls, sentence):
+        """Wrapper around wit.ai text_query API.
+
+        :rtype: dict
+        :return: wit.ai response
+
+        :type sentence: unicode
+        :arg sentence: input for wit.text_query
+        
+        """
+        if not cls._wit_initialized:
+            wit.init()   
+            cls._wit_initialized = True
+        return wit.text_query(sentence, Config.wit_access_token)
+
 
     @classmethod
     def _relationship_from_entity_data(cls, entities, raise_fn, new_fact_id=None):

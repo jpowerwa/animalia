@@ -26,6 +26,70 @@ import wit_responses
 # Set log level for unit tests
 logger.setLevel(logging.WARN)
 
+
+class FactManagerTests(unittest.TestCase):
+    """Verify behavior of simple FactManager methods.
+    """
+
+    @patch.object(fact_model.db.session, 'commit')
+    @patch.object(FactManager, '_save_parsed_fact')
+    @patch.object(FactManager, '_query_wit')
+    @patch.object(fact_model.IncomingFact, 'select_by_text')
+    @patch.object(FactManager, '_normalize_sentence')
+    def test_fact_from_sentence(self, normalize_sentence, select_fact, query_wit, save_fact, 
+                                commit_txn):
+        """Verify calls made by fact_from_sentence.
+        """
+        # Set up mocks and test data
+        mock_sentence = Mock(name='sentence')
+        normalize_sentence.return_value = mock_normalized_sentence = Mock(name='norm_sentence')
+        select_fact.return_value = None
+        test_data = copy.deepcopy(wit_responses.animal_species_fact_data)
+        query_wit.return_value = json.dumps(test_data)
+        save_fact.return_value = saved_fact = Mock(name='saved_fact')
+
+        # Make call
+        fact = FactManager.fact_from_sentence(mock_sentence)
+
+        # Verify result
+        self.assertEqual(saved_fact, fact)
+        
+        # Verify mocks
+        normalize_sentence.assert_called_once_with(mock_sentence)
+        select_fact.assert_called_once_with(mock_normalized_sentence)
+        query_wit.assert_called_once_with(mock_normalized_sentence)
+        save_fact.assert_called_once_with(parsed_data=test_data)
+        self.assertEqual(1, commit_txn.call_count)
+        
+    @patch.object(fact_model.db.session, 'commit')
+    @patch.object(FactManager, '_save_parsed_fact')
+    @patch.object(FactManager, '_query_wit')
+    @patch.object(fact_model.IncomingFact, 'select_by_text')
+    @patch.object(FactManager, '_normalize_sentence')
+    def test_fact_from_sentence__existing_sentence(self, normalize_sentence, select_fact, 
+                                                   query_wit, save_fact, commit_txn):
+        """Verify calls made by fact_from_sentence when sentence matches existing fact.
+        """
+        # Set up mocks and test data
+        mock_sentence = Mock(name='sentence')
+        normalize_sentence.return_value = mock_normalized_sentence = Mock(name='norm_sentence')
+        select_fact.return_value = mock_fact = Mock(name='incoming_fact')
+        test_data = copy.deepcopy(wit_responses.animal_species_fact_data)
+
+        # Make call
+        fact = FactManager.fact_from_sentence(mock_sentence)
+
+        # Verify result
+        self.assertEqual(mock_fact, fact)
+        
+        # Verify mocks
+        normalize_sentence.assert_called_once_with(mock_sentence)
+        select_fact.assert_called_once_with(mock_normalized_sentence)
+        self.assertEqual(0, query_wit.call_count)
+        self.assertEqual(0, save_fact.call_count)
+        self.assertEqual(0, commit_txn.call_count)
+        
+
 @patch.object(FactManager, '_merge_to_db_session')
 @patch.object(FactManager, '_relationship_from_entity_data')
 @patch.object(FactManager, '_verify_parsed_fact_data')
