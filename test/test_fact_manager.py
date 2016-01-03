@@ -89,6 +89,25 @@ class FactManagerTests(unittest.TestCase):
         self.assertEqual(0, save_fact.call_count)
         self.assertEqual(0, commit_txn.call_count)
 
+    @patch.object(FactManager, '_normalize_sentence')
+    def test_fact_from_sentence__no_sentence(self, normalize_sentence):
+        """Verify FactParseError if no sentence is provided.
+        """
+        for empty in (None, ''):
+            normalize_sentence.return_value = empty
+            self.assertRaisesRegexp(FactParseError,
+                                    'Invalid fact sentence provided',
+                                    FactManager.fact_from_sentence, 
+                                    'the otter lives in the river')
+
+    def test_fact_from_sentence__no_normalized_sentence(self):
+        """Verify FactParseError if sentence normalizes to empty string.
+        """
+        self.assertRaisesRegexp(FactParseError,
+                                'Invalid fact sentence provided',
+                                FactManager.fact_from_sentence, 
+                                '')
+
     def test_normalize_sentence(self):
         """Verify functionality of _normalize_sentence.
         """

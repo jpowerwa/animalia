@@ -80,6 +80,8 @@ class FactManager(object):
 
         """
         sentence = cls._normalize_sentence(sentence)
+        if not sentence:
+            raise FactParseError("Invalid fact sentence provided")
         incoming_fact = fact_model.IncomingFact.select_by_text(sentence)
         if not incoming_fact:
             wit_response = cls._query_wit(sentence)
@@ -347,8 +349,10 @@ class FactManager(object):
         :arg sentence: user-provided fact or query sentence
 
         """
-        sentence = re.sub(cls._non_alnum_exp, '', sentence)
-        return sentence.lower()
+        if sentence:
+            sentence = re.sub(cls._non_alnum_exp, '', sentence)
+            sentence = sentence.lower()
+        return sentence
 
     @classmethod
     def _query_wit(cls, sentence):
