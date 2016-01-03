@@ -58,11 +58,11 @@ class FactManager(object):
     _non_alnum_exp = re.compile(r'[^\w\s]', flags=re.UNICODE)
 
     @classmethod
-    def answer_question(cls, question):
-        """
+    def delete_fact_by_id(cls, fact_id):
+        """Delete persisted data corresponding to this IncomingFact.
 
-        :rtype: unicode 
-        :return: string that answers provided question; None if there is no known answer
+        :type fact_id: UUID
+        :arg fact_id: id of IncomingFact to be deleted
 
         """
         pass
@@ -105,11 +105,11 @@ class FactManager(object):
         return fact_model.IncomingFact.select_by_id(fact_id)
 
     @classmethod
-    def delete(cls, fact_id):
-        """Delete persisted data corresponding to this IncomingFact.
+    def query_facts(cls, query):
+        """
 
-        :type fact_id: UUID
-        :arg fact_id: id of IncomingFact to be deleted
+        :rtype: unicode 
+        :return: string that answers provided question; None if there is no known answer
 
         """
         pass
