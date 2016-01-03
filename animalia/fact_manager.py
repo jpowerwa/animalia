@@ -24,11 +24,6 @@ class IncomingFactError(Exception):
     """
     pass
 
-class FactConflictError(IncomingFactError):
-    """To raise if incoming fact conflicts with an existing fact.
-    """
-    pass
-
 class FactParseError(IncomingFactError):
     """To raise if incoming fact sentence cannot be parsed or if parsed data is invalid.
     """
@@ -38,6 +33,28 @@ class InvalidFactDataError(IncomingFactError):
     """To raise if data parsed from fact does not meet expectations.
     """
     pass
+
+class ConflictingFactError(IncomingFactError):
+    """To raise if incoming fact conflicts with existing fact data.
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        :type conflicting_fact_id: uuid
+        :arg conflicting_fact_id: conflicting fact_id 
+        """
+        self.conflicting_fact_id = kwargs.pop('conflicting_fact_id')
+        super(ConflictingFactError, self).__init__(*args, **kwargs)
+
+class DuplicateFactError(IncomingFactError):
+    """To raise if incoming fact is already represented and associated with existing fact.
+    """
+    def __init__(self, *args, **kwargs):
+        """
+        :type duplicate_fact_id: uuid
+        :arg duplicate_fact_id: duplicate fact_id 
+        """
+        self.duplicate_fact_id = kwargs.pop('duplicate_fact_id')
+        super(DuplicateFactError, self).__init__(*args, **kwargs)
 
 
 class FactManager(object):
@@ -219,7 +236,8 @@ class FactManager(object):
             subject_is_type_rel = cls._ensure_relationship(subject_concept,
                                                            type_concept,
                                                            relationship_name='is',
-                                                           new_fact_id=new_fact_id)
+                                                           new_fact_id=new_fact_id,
+                                                           error_on_duplicate=False)
             typed_concept = subject_is_type_rel.subject
         else:
             logger.error("No subjects for concept type '{0}': {1}".format(
@@ -229,11 +247,12 @@ class FactManager(object):
 
     @classmethod
     def _ensure_relationship(cls, subject_concept, object_concept, relationship_name=None, 
-                             relationship_number=None, new_fact_id=None):
+                             relationship_number=None, new_fact_id=None, error_on_duplicate=False):
         """
         :rtype: :py:class:`~fact_model.Relationship`
         :return: existing or unpersisted, newly created Relationship linking subject and object
-        :raise: :py:class:`FactManager.ConflictError` if relationship conflicts with existing data
+        :raise: :py:class:`DuplicateFactError` if relationship already exists
+        :raise: :py:class:`ConflictingFactError` if relationship conflicts with existing data
 
         :type subject_concept: :py:class:`~fact_model.Concept`
         :arg subject: subject of relationship
@@ -249,6 +268,9 @@ class FactManager(object):
 
         :type new_fact_id: uuid
         :arg new_fact_id: optional fact_id to be associated with newly-created relationship
+        
+        :type error_on_duplicate: bool
+        :type error_on_duplicate: if True and relationship exists, raise DuplicateFactError
         
         """
         # Find or create relevant RelationshipType
@@ -268,22 +290,37 @@ class FactManager(object):
                 object_concept.concept_id, 
                 relationship_type.relationship_type_id)
 
-        if relationship and relationship_number is not None:
-            if relationship.count is None:
-                # Update relationship data if needed
-                relationship.count = relationship_number
-            elif relationship.count != relationship_number:
-                # If specified number conflicts with persisted number, raise.
-                raise cls.ConflictError(
-                    ("Conflict with existing relationship where subject={subj}, "
-                     "object={obj} and relationship={rel}; persisted count conflicts "
-                     "with specified count: {current_count} vs {new_count}").format(
+        # If relationship exists, it may be a duplicate or a conflict or in need of update,
+        # depending on state of relationship_number and relationship.count.
+        if relationship:
+            if relationship_number is None or relationship_number == relationship.count:
+                if error_on_duplicate:
+                    raise DuplicateFactError(
+                        ("Found existing fact {fact_id} with subject={subj}, object={obj}, "
+                         "relationship={rel}").format(
+                            fact_id=relationship.fact_id,
+                            subj=subject_concept.concept_name,
+                            obj=object_concept.concept_name,
+                            rel=relationship_name),
+                        duplicate_fact_id=relationship.fact_id)
+
+            elif relationship.count is not None and relationship_number != relationship.count:
+                raise ConflictingFactError(
+                    ("Found conflicting fact {fact_id} with subject={subj}, object={obj}, "
+                     "relationship={rel}; persisted count conflicts with specified count: "
+                     "{current_count} vs {new_count}").format(
+                        fact_id=relationship.fact_id,
                         subj=subject_concept.concept_name,
                         obj=object_concept.concept_name,
                         rel=relationship_name,
                         current_count=relationship.count,
-                        new_count=relationship_number))
-                        
+                        new_count=relationship_number),
+                    conflicting_fact_id=relationship.fact_id)
+
+            elif relationship_number is not None:
+                # Otherwise, update existing relationship with count information.
+                relationship.count = relationship_number
+
         if not relationship:
             relationship = fact_model.Relationship(subject=subject_concept,
                                                    object=object_concept,
@@ -326,8 +363,6 @@ class FactManager(object):
     @classmethod
     def _merge_to_db_session(cls, model):
         """Merge provided model object to database session.
-
-        Do not commit db session.
 
         :rtype: instance of class from fact_model
         :return: instance after db session merge
@@ -398,7 +433,7 @@ class FactManager(object):
             entities, raise_fn, new_fact_id=new_fact_id)
 
         # Select or create Relationship linking Concepts
-        relationship_entity_data = entities.pop('relationship')
+        relationship_entity_data = entities.get('relationship') or []
         relationship_names, suggested = cls._filter_entity_values(relationship_entity_data)
         if len(relationship_names) != 1:
             raise_fn(("Expected 1 relationship entity for subject '{subj}' and object '{obj}'; "
@@ -420,12 +455,13 @@ class FactManager(object):
             if len(relationship_numbers) == 1:
                 relationship_number = relationship_numbers[0]
 
-        # Select, create or update relationship
+        # Select, create or update relationship, raising if relationship duplicates existing data.
         relationship = cls._ensure_relationship(subject_concept, 
                                                 object_concept, 
                                                 relationship_name=relationship_names[0], 
                                                 relationship_number=relationship_number,
-                                                new_fact_id=new_fact_id)
+                                                new_fact_id=new_fact_id,
+                                                error_on_duplicate=True)
         return relationship
 
 
@@ -433,16 +469,18 @@ class FactManager(object):
     def _save_parsed_fact(cls, parsed_data=None):
         """Persist IncomingFact and related ORM objects created from provided parsed_data.
 
-        Do not commit db session.
-        See wit_responses.py for sample response data.
-
         :rtype: :py:class:`~fact_model.IncomingFact`
         :return: newly saved IncomingFact created from provided data; None if fact cannot be created
         :raise: :py:class:`InvalidFactDataError` if provided data is invalid
-        :raise: :py:class:`FactConflictError` if provided data conflicts with existing fact
+        :raise: :py:class:`ConflictingFactError` if data conflicts with existing fact
+        :raise: :py:class:`DuplicateFactError` if data is attributed to existing fact
 
         :type parsed_data: dict
         :arg parsed_data: data returned from wit.ai
+
+        See wit_responses.py for samples of valid parsed_data.
+        Note: New and updated ORM objects are merged to db session but not committed.
+
 
         """
         # print("\nPARSED_DATA")
@@ -465,18 +503,24 @@ class FactManager(object):
 
         # Create or select Relationship ORM object representing parsed entity data.
         # It is safe to directly access outcome['entities'] since verification passed.
-        relationship = cls._relationship_from_entity_data(
-            parsed_outcome['entities'], raise_invalid_data_error, new_fact_id=new_fact_id)
-        # TODO: Deal with duplicated relationships
+        try:
+            relationship = cls._relationship_from_entity_data(
+                parsed_outcome['entities'], raise_invalid_data_error, new_fact_id=new_fact_id)
 
-        # Merge relationship to db session
-        cls._merge_to_db_session(relationship)
+            # Merge relationship to db session
+            cls._merge_to_db_session(relationship)
 
-        # Create, merge and return IncomingFact record
-        incoming_fact = fact_model.IncomingFact(fact_id=new_fact_id, 
-                                                fact_text=parsed_data['_text'], 
-                                                parsed_fact=json.dumps(parsed_data))
-        return cls._merge_to_db_session(incoming_fact)
+            # Create, merge and return IncomingFact record
+            incoming_fact = fact_model.IncomingFact(fact_id=new_fact_id, 
+                                                    fact_text=parsed_data['_text'], 
+                                                    parsed_fact=json.dumps(parsed_data))
+            incoming_fact = cls._merge_to_db_session(incoming_fact)
+
+        except DuplicateFactError as ex:
+            logger.warn(ex.message)
+            incoming_fact = fact_model.IncomingFact.select_by_id(ex.duplicate_fact_id)
+            
+        return incoming_fact
 
     @classmethod
     def _verify_parsed_fact_data(cls, parsed_fact_data, raise_fn):

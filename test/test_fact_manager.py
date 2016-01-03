@@ -17,9 +17,11 @@ from mock import ANY, Mock, patch
 
 from animalia.fact_manager import (logger,
                                    FactManager, 
-                                   FactConflictError, 
+                                   IncomingFactError,
                                    FactParseError, 
-                                   InvalidFactDataError)
+                                   InvalidFactDataError,
+                                   ConflictingFactError,
+                                   DuplicateFactError)
 import animalia.fact_model as fact_model
 import wit_responses
 
@@ -165,6 +167,30 @@ class SaveParsedFactTests(unittest.TestCase):
         self.assertEqual('the otter is a mammal', incoming_fact_arg.fact_text)
         self.assertEqual(json.dumps(test_data), incoming_fact_arg.parsed_fact)
 
+    @patch.object(fact_model.IncomingFact, 'select_by_id')
+    def test_save_parsed_fact__duplicate_fact(self, select_fact, verify_data, create_relationship,
+                                              merge_to_session):
+        """Verify calls made by _save_parsed_fact when relationship is duplicate.
+        """
+        # Set up mocks and test data
+        test_data = copy.deepcopy(wit_responses.animal_species_fact_data)
+        dup_fact_id = uuid.uuid4()
+        verify_data.return_value = test_data['outcomes'][0]
+        select_fact.return_value = mock_fact = Mock(name='fact')
+        create_relationship.side_effect = DuplicateFactError('uh oh',
+                                                             duplicate_fact_id=dup_fact_id)
+
+        # Make call
+        with patch.object(logger, 'warn') as log_warn:
+            saved_fact = FactManager._save_parsed_fact(parsed_data=test_data)
+        
+        # Verify return value
+        self.assertEqual(mock_fact, saved_fact)
+        
+        # Verify mocks
+        log_warn.assert_called_once_with('uh oh')
+        select_fact.assert_called_once_with(dup_fact_id)
+
 
 @patch.object(FactManager, '_ensure_relationship')
 @patch.object(FactManager, '_filter_entity_values')
@@ -207,7 +233,8 @@ class RelationshipFromEntityDataTests(unittest.TestCase):
                                                     mock_obj_concept, 
                                                     relationship_name='whatever', 
                                                     relationship_number=None, 
-                                                    new_fact_id=mock_fact_id)
+                                                    new_fact_id=mock_fact_id,
+                                                    error_on_duplicate=True)
 
     def test_with_count(self, create_concepts, filter_entities, ensure_relationship):
         """Verify calls made by _relationship_from_entity_data for relationship with number entity.
@@ -238,7 +265,8 @@ class RelationshipFromEntityDataTests(unittest.TestCase):
                                                     mock_obj_concept, 
                                                     relationship_name='whatever', 
                                                     relationship_number=14,
-                                                    new_fact_id=mock_fact_id)
+                                                    new_fact_id=mock_fact_id,
+                                                    error_on_duplicate=True)
 
     def test_with_suggested_relationship(self, create_concepts, filter_entities,
                                          ensure_relationship):
@@ -268,7 +296,8 @@ class RelationshipFromEntityDataTests(unittest.TestCase):
                                                     mock_obj_concept, 
                                                     relationship_name='whatever',
                                                     relationship_number=None, 
-                                                    new_fact_id=mock_fact_id)
+                                                    new_fact_id=mock_fact_id,
+                                                    error_on_duplicate=True)
 
     def test_error__multiple_relationships(self, create_concepts, filter_entities,
                                            ensure_relationship):
