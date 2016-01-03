@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 
 import json
 import logging
+import re
 import uuid 
 
 import wit
@@ -52,6 +53,9 @@ class FactManager(object):
 
     # Initialize wit exactly once
     _wit_initialized = False
+
+    # Pattern for stripping characters from user-specified fact sentences.
+    _non_alnum_exp = re.compile(r'[^\w\s]', flags=re.UNICODE)
 
     @classmethod
     def answer_question(cls, question):
@@ -343,6 +347,7 @@ class FactManager(object):
         :arg sentence: user-provided fact or query sentence
 
         """
+        sentence = re.sub(cls._non_alnum_exp, '', sentence)
         return sentence.lower()
 
     @classmethod

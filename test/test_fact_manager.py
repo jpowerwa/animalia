@@ -88,6 +88,12 @@ class FactManagerTests(unittest.TestCase):
         self.assertEqual(0, query_wit.call_count)
         self.assertEqual(0, save_fact.call_count)
         self.assertEqual(0, commit_txn.call_count)
+
+    def test_normalize_sentence(self):
+        """Verify functionality of _normalize_sentence.
+        """
+        sentence = 'The otter, lives in the river!'
+        self.assertEqual('the otter lives in the river', FactManager._normalize_sentence(sentence))
         
 
 @patch.object(FactManager, '_merge_to_db_session')
