@@ -484,3 +484,54 @@ class ConceptsFromEntityDataTests(unittest.TestCase):
                           new_fact_id=Mock())
         mock_raise_fn.assert_called_once_with("No object concept found")
 
+
+@patch.object(FactManager, '_delete_from_db_session')
+@patch.object(fact_model.Relationship, 'select_by_fact_id')
+@patch.object(fact_model.IncomingFact, 'select_by_id')
+class DeleteFactTests(unittest.TestCase):
+    """Verify behavior of delete_fact_by_id method.
+    """
+    def test_delete_fact_by_id(self, select_fact, select_relationships, delete_from_session):
+        """Verify calls made by delete_fact_by_id.
+        """
+        # Set up mocks and test data
+        fact_id = uuid.uuid4()
+        select_fact.return_value = mock_fact = Mock(name='fact')
+        mock_relationships = [Mock(name='relationship_1'), Mock(name='relationship_2')]
+        select_relationships.return_value = mock_relationships
+        
+        # Make call
+        deleted_fact_id = FactManager.delete_fact_by_id(fact_id)
+
+        # Verify result
+        self.assertEqual(fact_id, deleted_fact_id)
+
+        # Verify mocks
+        select_fact.assert_called_once_with(fact_id)
+        select_relationships.assert_called_once_with(fact_id)
+
+        call_args_list = delete_from_session.call_args_list
+        self.assertEqual(len(mock_relationships) + 1, len(call_args_list))
+        for i, call_args in enumerate(call_args_list):
+            if i < len(mock_relationships):
+                self.assertEqual(mock_relationships[i], call_args[0][0])
+        self.assertEqual(mock_fact, call_args_list[-1][0][0])
+
+    def test_delete_fact_by_id__no_fact_found(self, select_fact, select_relationships,
+                                              delete_from_session):
+        """Verify calls made by delete_fact_by_id when no fact is found.
+        """
+        # Set up mocks and test data
+        fact_id = uuid.uuid4()
+        select_fact.return_value = None
+        
+        # Make call
+        deleted_fact_id = FactManager.delete_fact_by_id(fact_id)
+
+        # Verify result
+        self.assertIsNone(deleted_fact_id)
+
+        # Verify mocks
+        select_fact.assert_called_once_with(fact_id)
+        self.assertEqual(0, select_relationships.call_count)
+        self.assertEqual(0, delete_from_session.call_count)

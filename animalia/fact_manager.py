@@ -78,11 +78,21 @@ class FactManager(object):
     def delete_fact_by_id(cls, fact_id):
         """Delete persisted data corresponding to this IncomingFact.
 
+        :rtype: UUID
+        :return: id of deleted fact; None if no fact was found
+
         :type fact_id: UUID
         :arg fact_id: id of IncomingFact to be deleted
 
         """
-        pass
+        deleted_fact_id = None
+        fact = fact_model.IncomingFact.select_by_id(fact_id)
+        if fact:
+            for relationship in fact_model.Relationship.select_by_fact_id(fact_id):
+                cls._delete_from_db_session(relationship)
+            cls._delete_from_db_session(fact)
+            deleted_fact_id = fact_id
+        return deleted_fact_id
 
     @classmethod
     def fact_from_sentence(cls, sentence):
@@ -180,6 +190,16 @@ class FactManager(object):
         if not object_concept:
             raise_fn("No object concept found")
         return subject_concept, object_concept
+
+    @classmethod
+    def _delete_from_db_session(cls, model):
+        """Delete provided model object to database session.
+
+        :type model: instance of class from fact_model
+        :arg model: instance to delete from db session
+
+        """
+        fact_model.db.session.delete(relationship)
 
     @classmethod
     def _ensure_concept(cls, concept_name):

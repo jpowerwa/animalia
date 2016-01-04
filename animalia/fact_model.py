@@ -82,6 +82,19 @@ class Relationship(db.Model):
     fact_id = sa.Column(UUIDType(), nullable=True)
 
     @classmethod
+    def select_by_fact_id(cls, fact_id):
+        """Select Relationships associated with specified fact_id.
+
+        :rtype: [py:class:`~fact_model.Relationship`]
+        :return: list of matching relationship; empty list if no matches are found
+
+        :type fact_id: uuid
+        arg fact_id: fact_id identifying relationships to be selected
+        
+        """
+        return db.session.query(cls).filter_by(fact_id=fact_id).all()
+
+    @classmethod
     def select_by_foreign_keys(cls, subject_id=None, object_id=None, relationship_type_id=None):
         """Select Relationship with specified subject, object and relationship type.
 

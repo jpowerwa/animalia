@@ -209,6 +209,37 @@ class RelationshipTests(FactModelTestCase):
         self.assertEqual(object_id, retrieved_rel.object_id)
         self.assertTrue(isinstance(retrieved_rel.relationship_id, uuid.UUID))
 
+    def test_relationship__select_by_fact_id(self):
+        """Verify select_by_fact_id method finds expected Relationships
+        """
+        rel_type_ids = [uuid.uuid4(), uuid.uuid4()]
+        fact_id = uuid.uuid4()
+
+        # Add two Relationships with fact_id
+        for rel_type_id in rel_type_ids:
+            db.session.add(Relationship(relationship_type_id=rel_type_id,
+                                        subject_id=uuid.uuid4(),
+                                        object_id=uuid.uuid4(),
+                                        fact_id=fact_id))
+            
+        # Add another Relationship with a different fact_id
+        db.session.add(Relationship(relationship_type_id=uuid.uuid4(),
+                                    subject_id=uuid.uuid4(),
+                                    object_id=uuid.uuid4(),
+                                    fact_id=uuid.uuid4()))
+        self.reset_session()
+
+        retrieved_rels = Relationship.select_by_fact_id(fact_id)
+        self.assertEqual(len(rel_type_ids), len(retrieved_rels))
+        for rel in retrieved_rels:
+            self.assertEqual(fact_id, rel.fact_id)
+
+    def test_relationship__select_by_fact_id__no_match(self):
+        """Verify select_by_fact_id method returns empty list if there is no match.
+        """
+        retrieved_rels = Relationship.select_by_fact_id(uuid.uuid4())
+        self.assertEqual([], retrieved_rels)
+
     def test_relationship__select_by_foreign_keys(self):
         """Verify select_by_foreign_keys method finds expected Relationship.
         """
@@ -227,9 +258,6 @@ class RelationshipTests(FactModelTestCase):
                                         object_id=o_id))
         self.reset_session()
 
-        all_rels = db.session.query(Relationship).all()
-        self.assertEqual(4, len(all_rels))
-
         retrieved_rel = Relationship.select_by_foreign_keys(subject_id=subject_id, 
                                                             object_id=object_id,
                                                             relationship_type_id=rel_type_id)
@@ -237,6 +265,14 @@ class RelationshipTests(FactModelTestCase):
         self.assertEqual(rel_type_id, retrieved_rel.relationship_type_id)
         self.assertEqual(subject_id, retrieved_rel.subject_id)
         self.assertEqual(object_id, retrieved_rel.object_id)
+
+    def test_relationship__select_by_foreign_keys__no_match(self):
+        """Verify select_by_foreign_keys method returns None if there is no match.
+        """
+        retrieved_rel = Relationship.select_by_foreign_keys(subject_id=uuid.uuid4(),
+                                                            object_id=uuid.uuid4(),
+                                                            relationship_type_id=uuid.uuid4())
+        self.assertIsNone(retrieved_rel, "Expected to not find persisted Relationship")
 
     def test_relationship__subject_relation(self):
         """Verify subject relation on Relationship.
@@ -312,11 +348,51 @@ class RelationshipTests(FactModelTestCase):
                          retrieved_rel.relationship_type.relationship_type_name)
         self.reset_session()
 
-        # Verify RelationshipType was persisted as well
-        retrieved_rel_type = db.session.query(RelationshipType).filter_by(
+        # Verify RelationshipTypeName was persisted as well
+        retrieved_rel_type = db.session.query(RelationshipTypeName).filter_by(
             relationship_type_id=rel_type.relationship_type_id).first()
-        self.assertIsNotNone(retrieved_rel_type, "Expected to find persisted RelationshipType")
-        
+        self.assertIsNotNone(retrieved_rel_type, "Expected to find persisted RelationshipTypeName")
+
+    def test_delete_relationship(self):
+        """Verify that deleting Relationship leaves Concepts and RelationshipTypeName intact.
+        """
+        rel_id = uuid.uuid4()
+        subject_concept = self._get_concept('flat')
+        object_concept =  self._get_concept('shoe')
+        rel_type = RelationshipTypeName(relationship_type_id=uuid.uuid4(),
+                                        relationship_type_name='is_{0}'.format(uuid.uuid4()))
+        relationship = Relationship(relationship_id=rel_id,
+                                    subject=subject_concept,
+                                    object=object_concept,
+                                    relationship_type=rel_type)
+        db.session.add(relationship)
+        self.reset_session()
+
+        # Verify Relationship, Concepts and RelationshipTypeName
+        retrieved_rel = db.session.query(Relationship).filter_by(relationship_id=rel_id).one()
+        self.assertIsNotNone(retrieved_rel)
+        self.assertIsNotNone(db.session.query(RelationshipTypeName).filter_by(
+                relationship_type_name=rel_type.relationship_type_name).one())
+        self.assertIsNotNone(db.session.query(Concept).filter_by(
+                concept_id=subject_concept.concept_id).one())
+        self.assertIsNotNone(db.session.query(Concept).filter_by(
+                concept_id=object_concept.concept_id).one())
+
+        # Delete Relationship
+        db.session.delete(retrieved_rel)
+        self.reset_session()
+
+        # Verify Relationship is gone
+        self.assertIsNone(db.session.query(Relationship).filter_by(relationship_id=rel_id).first())
+
+        # Verify Concepts and RelationshipTypeName remain
+        self.assertIsNotNone(db.session.query(RelationshipTypeName).filter_by(
+                relationship_type_name=rel_type.relationship_type_name).one())
+        self.assertIsNotNone(db.session.query(Concept).filter_by(
+                concept_id=subject_concept.concept_id).one())
+        self.assertIsNotNone(db.session.query(Concept).filter_by(
+                concept_id=object_concept.concept_id).one())
+
 
 class IncomingFactTests(FactModelTestCase):
     """Verify IncomingFact ORM.
