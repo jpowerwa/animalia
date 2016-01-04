@@ -87,7 +87,7 @@ class RelationshipTypeTests(FactModelTestCase):
         rel_type_name = 'eats_{0}'.format(uuid.uuid4())
         rel_type_id = uuid.uuid4()
         rel_type = RelationshipType(relationship_type_name=rel_type_name, 
-                                             relationship_type_id=rel_type_id)
+                                        relationship_type_id=rel_type_id)
         db.session.add(rel_type)
         self.reset_session()
 
@@ -329,7 +329,7 @@ class RelationshipTests(FactModelTestCase):
         """
         rel_id = uuid.uuid4()
         rel_type = RelationshipType(relationship_type_id=uuid.uuid4(),
-                                    relationship_type_name='is_{0}'.format(uuid.uuid4()))
+                                        relationship_type_name='is_{0}'.format(uuid.uuid4()))
         relationship = Relationship(relationship_id=rel_id,
                                     subject_id=uuid.uuid4(),
                                     object_id=uuid.uuid4(),
@@ -348,18 +348,18 @@ class RelationshipTests(FactModelTestCase):
                          retrieved_rel.relationship_type.relationship_type_name)
         self.reset_session()
 
-        # Verify RelationshipTypeName was persisted as well
-        retrieved_rel_type = db.session.query(RelationshipTypeName).filter_by(
+        # Verify RelationshipType was persisted as well
+        retrieved_rel_type = db.session.query(RelationshipType).filter_by(
             relationship_type_id=rel_type.relationship_type_id).first()
-        self.assertIsNotNone(retrieved_rel_type, "Expected to find persisted RelationshipTypeName")
+        self.assertIsNotNone(retrieved_rel_type, "Expected to find persisted RelationshipType")
 
     def test_delete_relationship(self):
-        """Verify that deleting Relationship leaves Concepts and RelationshipTypeName intact.
+        """Verify that deleting Relationship leaves Concepts and RelationshipType intact.
         """
         rel_id = uuid.uuid4()
         subject_concept = self._get_concept('flat')
         object_concept =  self._get_concept('shoe')
-        rel_type = RelationshipTypeName(relationship_type_id=uuid.uuid4(),
+        rel_type = RelationshipType(relationship_type_id=uuid.uuid4(),
                                         relationship_type_name='is_{0}'.format(uuid.uuid4()))
         relationship = Relationship(relationship_id=rel_id,
                                     subject=subject_concept,
@@ -368,10 +368,10 @@ class RelationshipTests(FactModelTestCase):
         db.session.add(relationship)
         self.reset_session()
 
-        # Verify Relationship, Concepts and RelationshipTypeName
+        # Verify Relationship, Concepts and RelationshipType
         retrieved_rel = db.session.query(Relationship).filter_by(relationship_id=rel_id).one()
         self.assertIsNotNone(retrieved_rel)
-        self.assertIsNotNone(db.session.query(RelationshipTypeName).filter_by(
+        self.assertIsNotNone(db.session.query(RelationshipType).filter_by(
                 relationship_type_name=rel_type.relationship_type_name).one())
         self.assertIsNotNone(db.session.query(Concept).filter_by(
                 concept_id=subject_concept.concept_id).one())
@@ -385,8 +385,8 @@ class RelationshipTests(FactModelTestCase):
         # Verify Relationship is gone
         self.assertIsNone(db.session.query(Relationship).filter_by(relationship_id=rel_id).first())
 
-        # Verify Concepts and RelationshipTypeName remain
-        self.assertIsNotNone(db.session.query(RelationshipTypeName).filter_by(
+        # Verify Concepts and RelationshipType remain
+        self.assertIsNotNone(db.session.query(RelationshipType).filter_by(
                 relationship_type_name=rel_type.relationship_type_name).one())
         self.assertIsNotNone(db.session.query(Concept).filter_by(
                 concept_id=subject_concept.concept_id).one())

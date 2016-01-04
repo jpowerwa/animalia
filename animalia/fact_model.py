@@ -70,7 +70,8 @@ class RelationshipType(db.Model):
 class Relationship(db.Model):
     __tablename__ = 'relationships'
     __table_args__ = (
-        sa.ForeignKeyConstraint(['relationship_type_id'], [RelationshipType.relationship_type_id]),
+        sa.ForeignKeyConstraint(['relationship_type_id'], 
+                                [RelationshipType.relationship_type_id]),
         sa.ForeignKeyConstraint(['subject_id'], [Concept.concept_id]),
         sa.ForeignKeyConstraint(['object_id'], [Concept.concept_id])
         )

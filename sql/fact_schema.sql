@@ -24,8 +24,8 @@ CREATE TABLE `relationships` (
 
 DROP TABLE IF EXISTS `relationship_types`;
 CREATE TABLE `relationship_types` (
-  `relationship_type_id` char(36) NOT NULL,
   `relationship_type_name` varchar(45) NOT NULL,
+  `relationship_type_id` char(36) NOT NULL,
   PRIMARY KEY (`relationship_type_name`),
   INDEX `ix_relationship_types_relationship_type_id` (`relationship_type_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -115,6 +115,34 @@ class FactManagerTests(unittest.TestCase):
         """
         sentence = 'The otter, lives in the river!'
         self.assertEqual('the otter lives in the river', FactManager._normalize_sentence(sentence))
+
+    def test_filter_entity_values(self):
+        """Verify behavior of filter_entity_values.
+        """
+        # Set up mocks and test data
+        value_entities = [{'type': 'value', 'value': 'foo'}, {'type': 'value', 'value': 'bar'}]
+        suggested_entities = [{'type': 'value', 'value': 'maybe foo', 'suggested': True}, 
+                              {'type': 'value', 'value': 'maybe bar', 'suggested': True}]
+        other_entities = [{'type': 'whatever'}, {'type': 'whoever'}]
+        test_data = [suggested_entities[0], 
+                     value_entities[0], 
+                     other_entities[0],
+                     value_entities[1],
+                     other_entities[1],
+                     suggested_entities[1]]
+        
+        # Make call
+        v, s = FactManager._filter_entity_values(test_data)
+        
+        # Verify results
+        self.assertEqual([e['value'] for e in value_entities], v)
+        self.assertEqual([e['value'] for e in suggested_entities], s)
+        
+    def test_filter_entity_values__empty_data(self):
+        """Verify behavior of filter_entity_values when empty data is supplied.
+        """
+        for empty in (None, []):
+            self.assertEqual(([], []), FactManager._filter_entity_values(empty))
         
 
 @patch.object(FactManager, '_merge_to_db_session')
@@ -485,6 +513,301 @@ class ConceptsFromEntityDataTests(unittest.TestCase):
         mock_raise_fn.assert_called_once_with("No object concept found")
 
 
+@patch.object(FactManager, '_ensure_relationship')
+@patch.object(FactManager, '_ensure_concept')
+@patch.object(FactManager, '_filter_entity_values')
+class EnsureConceptWithTypeTests(unittest.TestCase):
+    """Verify behavior of _ensure_concept_with_type method.
+    """
+    def test_ensure_concept_with_type(self, filter_entities, ensure_concept, ensure_relationship):
+        """Verify calls made by _ensure_concept_with_type.
+        """
+        # Set up mocks and test data
+        mock_concept_data = Mock(name='concept_data')
+        test_concept_type = 'shoe'
+        filter_entities.return_value = (['high heel'], [])
+        mock_subj_concept = Mock(name='subj_concept', concept_name='high heel')
+        mock_obj_concept = Mock(name='obj_concept', concept_name='shoe')
+        ensure_concept.side_effect = [mock_subj_concept, mock_obj_concept]
+        mock_rel = Mock(name='relationship', subject=mock_subj_concept)
+        ensure_relationship.return_value = mock_rel
+                                                           
+        new_fact_id = Mock(name='new_fact_id')
+
+        # Make call
+        typed_concept = FactManager._ensure_concept_with_type(
+            mock_concept_data, test_concept_type, new_fact_id)
+
+        # Verify result
+        self.assertEqual(mock_subj_concept, typed_concept)
+
+        # Verify mocks
+        filter_entities.assert_called_once_with(mock_concept_data)
+        
+        call_args_list = ensure_concept.call_args_list
+        self.assertEqual(2, len(call_args_list))
+        self.assertEqual('high heel', call_args_list[0][0][0])
+        self.assertEqual('shoe', call_args_list[1][0][0])
+        
+        ensure_relationship.assert_called_once_with(mock_subj_concept, 
+                                                    mock_obj_concept,
+                                                    relationship_name='is',
+                                                    new_fact_id=new_fact_id,
+                                                    error_on_duplicate=False)
+
+    def test_ensure_concept_with_type__suggestion(self, filter_entities, ensure_concept, 
+                                                   ensure_relationship):
+        """Verify calls made by _ensure_concept_with_type with subject suggestions
+        """
+        # Set up mocks and test data
+        mock_concept_data = Mock(name='concept_data')
+        test_concept_type = 'shoe'
+        filter_entities.return_value = (['high heel'], ['other'])
+        mock_subj_concept = Mock(name='subj_concept', concept_name='high heel')
+        ensure_concept.side_effect = [mock_subj_concept, Mock(name='obj_concept')]
+        mock_rel = Mock(name='relationship', subject=mock_subj_concept)
+        ensure_relationship.return_value = mock_rel
+                                                           
+        # Make call
+        with patch.object(logger, 'warn') as log_warn:
+            typed_concept = FactManager._ensure_concept_with_type(
+                mock_concept_data, test_concept_type, Mock(name='fact_id'))
+
+        # Verify result
+        self.assertEqual(mock_subj_concept, typed_concept)
+
+        # Verify mocks
+        log_warn.assert_called_once_with(
+            "Skipping suggested subject 'other' for concept_type 'shoe'")
+
+    def test_ensure_concept_with_type__multiple_subjects(self, filter_entities, ensure_concept, 
+                                                         ensure_relationship):
+        """Verify calls made by _ensure_concept_with_type with multiple subjects.
+        """
+        # Set up mocks and test data
+        mock_concept_data = Mock(name='concept_data')
+        test_concept_type = 'shoe'
+        filter_entities.return_value = (['high heel', 'other'], [])
+        mock_subj_concept = Mock(name='subj_concept', concept_name='high heel')
+        ensure_concept.side_effect = [mock_subj_concept, Mock(name='obj_concept')]
+        mock_rel = Mock(name='relationship', subject=mock_subj_concept)
+        ensure_relationship.return_value = mock_rel
+                                                           
+        # Make call
+        with patch.object(logger, 'warn') as log_warn:
+            typed_concept = FactManager._ensure_concept_with_type(
+                mock_concept_data, test_concept_type, Mock(name='fact_id'))
+
+        # Verify result
+        self.assertEqual(mock_subj_concept, typed_concept)
+
+        # Verify mocks
+        log_warn.assert_called_once_with(
+            "Multiple subjects for concept_type 'shoe': {0}; ignoring all but 'high heel'".format(
+                ['high heel', 'other']))
+
+
+@patch.object(fact_model.Relationship, 'select_by_foreign_keys')
+@patch.object(fact_model.RelationshipType, 'select_by_name')
+class EnsureRelationshipTests(unittest.TestCase):
+    """Verify behavior of _ensure_relationship.
+    """
+    def setUp(self):
+        super(EnsureRelationshipTests, self).setUp()
+        self.subj_concept = Mock(name='subj_concept', concept_id=uuid.uuid4())
+        self.obj_concept = Mock(name='obj_concept', concept_id=uuid.uuid4())
+
+    def test_ensure_relationship(self, select_type_by_name, select_relationship):
+        """Verify calls made by _ensure_relationship for new relationship and relationship_name.
+        """
+        # Set up mocks and test data
+        select_type_by_name.return_value = None
+        select_relationship.return_value = None
+        relationship_name = 'aunt'
+        new_fact_id = uuid.uuid4()
+
+        # Make call
+        relationship = FactManager._ensure_relationship(self.subj_concept, 
+                                                        self.obj_concept,
+                                                        relationship_name=relationship_name,
+                                                        new_fact_id=new_fact_id)
+
+        # Verify result
+        self.assertEqual(self.subj_concept, relationship.subject)
+        self.assertEqual(self.obj_concept, relationship.object)
+        self.assertEqual(relationship_name, relationship.relationship_type.relationship_type_name)
+        self.assertIsNone(relationship.count)
+        self.assertEqual(new_fact_id, relationship.fact_id)
+
+    def test_ensure_relationship__existing_type(self, select_type_by_name, select_relationship):
+        """Verify calls made by _ensure_relationship for existing relationship_type.
+        """
+        # Set up mocks and test data
+        r_name = 'aunt'
+        select_type_by_name.return_value = mock_rel_type = Mock(name='relationship_type',
+                                                                relationship_type_name=r_name,
+                                                                relationship_type_id=uuid.uuid4())
+        select_relationship.return_value = None
+        new_fact_id = uuid.uuid4()
+
+        # Make call
+        relationship = FactManager._ensure_relationship(self.subj_concept, 
+                                                        self.obj_concept,
+                                                        relationship_name=r_name,
+                                                        new_fact_id=new_fact_id)
+
+        # Verify result
+        self.assertEqual(self.subj_concept, relationship.subject)
+        self.assertEqual(self.obj_concept, relationship.object)
+        self.assertEqual(mock_rel_type, relationship.relationship_type)
+        self.assertIsNone(relationship.count)
+        self.assertEqual(new_fact_id, relationship.fact_id)
+
+        # Verify mocks
+        select_type_by_name.assert_called_once_with(r_name)
+        select_relationship.assert_called_once_with(self.subj_concept.concept_id,
+                                                    self.obj_concept.concept_id,
+                                                    mock_rel_type.relationship_type_id)
+
+    def test_ensure_relationship__duplicate(self, select_type_by_name, select_relationship):
+        """Verify calls made by _ensure_relationship for existing relationship.
+        """
+        # Set up mocks and test data
+        r_name = 'aunt'
+        select_type_by_name.return_value = mock_rel_type = Mock(name='relationship_type',
+                                                                relationship_type_name=r_name)
+        select_relationship.return_value = mock_rel = Mock(name='relationship')
+
+        # Make call
+        relationship = FactManager._ensure_relationship(self.subj_concept, 
+                                                        self.obj_concept,
+                                                        relationship_name=r_name,
+                                                        new_fact_id=uuid.uuid4())
+        # Verify result
+        self.assertEqual(relationship, mock_rel)
+
+    def test_ensure_relationship__duplicate_raise(self, select_type_by_name, select_relationship):
+        """Verify raise for duplicate relationship with error_on_duplicate=True.
+        """
+        # Set up mocks and test data
+        r_name = 'aunt'
+        select_type_by_name.return_value = mock_rel_type = Mock(name='relationship_type',
+                                                                relationship_type_name=r_name)
+        select_relationship.return_value = mock_rel = Mock(name='relationship',
+                                                           fact_id=uuid.uuid4())
+
+        # Make call
+        self.assertRaisesRegexp(
+            DuplicateFactError,
+            'Found existing fact {0} with subject={1}, object={2}, relationship={3}'.format(
+                mock_rel.fact_id, self.subj_concept.concept_name, self.obj_concept.concept_name,
+                r_name),
+            FactManager._ensure_relationship,
+            self.subj_concept, 
+            self.obj_concept,
+            relationship_name=r_name,
+            new_fact_id=uuid.uuid4(),
+            error_on_duplicate=True)
+
+    def test_ensure_relationship__duplicate__no_count_specified(self, select_type_by_name, 
+                                                                select_relationship):
+        """Verify duplicate if relationship has count but no relationship_number is specified.
+        """
+        # Set up mocks and test data
+        r_name = 'aunt'
+        select_type_by_name.return_value = mock_rel_type = Mock(name='relationship_type',
+                                                                relationship_type_name=r_name)
+        select_relationship.return_value = mock_rel = Mock(name='relationship',
+                                                           fact_id=uuid.uuid4(),
+                                                           count=3)
+
+        # Make call
+        self.assertRaisesRegexp(
+            DuplicateFactError,
+            'Found existing fact {0} with subject={1}, object={2}, relationship={3}'.format(
+                mock_rel.fact_id, self.subj_concept.concept_name, self.obj_concept.concept_name,
+                r_name),
+            FactManager._ensure_relationship,
+            self.subj_concept, 
+            self.obj_concept,
+            relationship_name=r_name,
+            new_fact_id=uuid.uuid4(),
+            error_on_duplicate=True)
+
+    def test_ensure_relationship__duplicate__matching_count(self, select_type_by_name, 
+                                                            select_relationship):
+        """Verify duplicate if relationship has count.
+        """
+        # Set up mocks and test data
+        r_name = 'aunt'
+        select_type_by_name.return_value = mock_rel_type = Mock(name='relationship_type',
+                                                                relationship_type_name=r_name)
+        select_relationship.return_value = mock_rel = Mock(name='relationship',
+                                                           fact_id=uuid.uuid4(),
+                                                           count=3)
+
+        # Make call
+        self.assertRaisesRegexp(
+            DuplicateFactError,
+            'Found existing fact {0} with subject={1}, object={2}, relationship={3}'.format(
+                mock_rel.fact_id, self.subj_concept.concept_name, self.obj_concept.concept_name,
+                r_name),
+            FactManager._ensure_relationship,
+            self.subj_concept, 
+            self.obj_concept,
+            relationship_name=r_name,
+            relationship_number=3,
+            new_fact_id=uuid.uuid4(),
+            error_on_duplicate=True)
+
+    def test_ensure_relationship__conflict(self, select_type_by_name, select_relationship):
+        """Verify error on conflict with existing relationship count.
+        """
+        # Set up mocks and test data
+        r_name = 'aunt'
+        orig_count = 3
+        new_count = 4
+        select_type_by_name.return_value = mock_rel_type = Mock(name='relationship_type',
+                                                                relationship_type_name=r_name)
+        select_relationship.return_value = mock_rel = Mock(name='relationship', count=orig_count)
+
+        # Make call
+        self.assertRaisesRegexp(
+            ConflictingFactError,
+            ('Found conflicting fact {0} with subject={1}, object={2}, relationship={3}; '
+             'persisted count conflicts with specified count: 3 vs 4').format(
+                mock_rel.fact_id, self.subj_concept.concept_name, self.obj_concept.concept_name,
+                r_name),
+            FactManager._ensure_relationship,
+            self.subj_concept, 
+            self.obj_concept,
+            relationship_name=r_name,
+            relationship_number=new_count,
+            new_fact_id=uuid.uuid4(),
+            error_on_duplicate=True)
+
+    def test_ensure_relationship__needs_update(self, select_type_by_name, select_relationship):
+        """Verify relationship.count is set on existing relationship if relationship_number is sent.
+        """
+        # Set up mocks and test data
+        r_name = 'aunt'
+        select_type_by_name.return_value = mock_rel_type = Mock(name='relationship_type',
+                                                                relationship_type_name=r_name)
+        select_relationship.return_value = mock_rel = Mock(name='relationship',
+                                                           count=None)
+        self.assertIsNone(mock_rel.count)
+
+        # Make call
+        relationship = FactManager._ensure_relationship(self.subj_concept, 
+                                                        self.obj_concept,
+                                                        relationship_name=r_name,
+                                                        relationship_number=2,
+                                                        new_fact_id=uuid.uuid4())
+        # Verify result
+        self.assertEqual(mock_rel, relationship)
+        self.assertEqual(2, mock_rel.count)
+
+
 @patch.object(FactManager, '_delete_from_db_session')
 @patch.object(fact_model.Relationship, 'select_by_fact_id')
 @patch.object(fact_model.IncomingFact, 'select_by_id')
@@ -535,3 +858,139 @@ class DeleteFactTests(unittest.TestCase):
         select_fact.assert_called_once_with(fact_id)
         self.assertEqual(0, select_relationships.call_count)
         self.assertEqual(0, delete_from_session.call_count)
+
+
+class VerifyParsedFactDataTests(unittest.TestCase):
+    """Verify logic of _verify_parsed_data method.
+    """
+    def setUp(self):
+        self.parsed_data = copy.deepcopy(wit_responses.animal_species_fact_data)
+#        self.mock_raise_fn = Mock(name='raise_fn', side_effect=lambda m: InvalidFactDataError(m))
+
+    @staticmethod
+    def raise_fn(message):
+        raise InvalidFactDataError(message)
+
+    def test_verify_fact_data(self):
+        """Verify that valid data passes.
+        """
+        for attr in ('animal_leg_fact_data',
+                     'animal_species_fact_data'):
+            test_data = copy.deepcopy(getattr(wit_responses, attr))
+            verified_data = FactManager._verify_parsed_fact_data(test_data, self.raise_fn)
+            self.assertEqual(test_data['outcomes'][0], verified_data)
+
+    def test_no_text_attr(self):
+        """Verify that parsed data without _text attribute fails.
+        """
+        del self.parsed_data['_text']
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                'No _text attribute',
+                                FactManager._verify_parsed_fact_data,
+                                self.parsed_data,
+                                self.raise_fn)
+
+    def test_multiple_outcomes(self):
+        """Verify that parsed data with extra 'outcome' attributes fails.
+        """
+        self.parsed_data['outcomes'].append({})
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                'Expected 1 outcome, found 2',
+                                FactManager._verify_parsed_fact_data,
+                                self.parsed_data,
+                                self.raise_fn)
+
+    def test_zero_outcomes(self):
+        """Verify that parsed data with no 'outcome' attributes fails.
+        """
+        del self.parsed_data['outcomes']
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                'Expected 1 outcome, found 0',
+                                FactManager._verify_parsed_fact_data,
+                                self.parsed_data,
+                                self.raise_fn)
+
+    def test_non_fact_intent(self):
+        """Verify that parsed data with non-fact intent fails.
+        """
+        self.parsed_data['outcomes'][0]['intent'] = 'pumpkin_pie'
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                "Non-fact outcome intent 'pumpkin_pie'",
+                                FactManager._verify_parsed_fact_data,
+                                self.parsed_data,
+                                self.raise_fn)
+
+    def test_low_confidence(self):
+        """Verify that outcome with confidence below threshold does not pass.
+        """
+        self.parsed_data['outcomes'][0]['confidence'] = FactManager.CONFIDENCE_THRESHOLD - 0.1
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                'Outcome confidence falls below threshold: 0.7 < 0.8',
+                                FactManager._verify_parsed_fact_data,
+                                self.parsed_data,
+                                self.raise_fn)
+
+    def test_too_few_entities(self):
+        """Verify that outcome with fewer than 3 entities fails.
+        """
+        self.parsed_data['outcomes'][0]['entities'] = {'foo': [], 'bar': []}
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                'Expected at least 3 entities, found 2',
+                                FactManager._verify_parsed_fact_data,
+                                self.parsed_data,
+                                self.raise_fn)
+
+    def test_multiple_relationship_entities(self):
+        """Verify that outcome with multiple relationship entities fails.
+        """
+        self.parsed_data['outcomes'][0]['entities']['relationship'].append({})
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                'Expected 1 relationship entity, found 2',
+                                FactManager._verify_parsed_fact_data,
+                                self.parsed_data,
+                                self.raise_fn)
+
+    def test_zero_relationship_entities(self):
+        """Verify that outcome with zeror elationship entities fails.
+        """
+        self.parsed_data['outcomes'][0]['entities']['third_entity'] = []
+        del self.parsed_data['outcomes'][0]['entities']['relationship']
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                'Expected 1 relationship entity, found 0',
+                                FactManager._verify_parsed_fact_data,
+                                self.parsed_data,
+                                self.raise_fn)
+
+    def test_multiple_subject_entities(self):
+        """Verify that outcome with multiple subject entities fails.
+        """
+        orig_subject_types = FactManager.SUBJECT_ENTITY_TYPES
+        FactManager.SUBJECT_ENTITY_TYPES = ['animal', 'species']
+
+        try:
+            FactManager._verify_parsed_fact_data(self.parsed_data, self.raise_fn)
+            self.fail("Did not expect to get here")
+        except InvalidFactDataError as ex:
+            msg = str(ex)
+            self.assertTrue(msg.startswith('Expected 1 subject entity, found 2'))
+            self.assertTrue('animal' in msg)
+            self.assertTrue('species' in msg)
+        finally:
+            FactManager.SUBJECT_ENTITY_TYPES = orig_subject_types
+
+    def test_zero_subject_entities(self):
+        """Verify that outcome with zero subject entities fails.
+        """
+        orig_subject_types = FactManager.SUBJECT_ENTITY_TYPES
+        FactManager.SUBJECT_ENTITY_TYPES = []
+
+        try:
+            FactManager._verify_parsed_fact_data(self.parsed_data, self.raise_fn)
+            self.fail("Did not expect to get here")
+        except InvalidFactDataError as ex:
+            self.assertEqual('Expected 1 subject entity, found 0: []', str(ex))
+        finally:
+            FactManager.SUBJECT_ENTITY_TYPES = orig_subject_types
+
+
+

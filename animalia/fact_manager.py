@@ -362,7 +362,7 @@ class FactManager(object):
         """
         vals = []
         suggested_vals = []
-        for entity in [e for e in entity_data if e.get('type') == 'value']:
+        for entity in [e for e in entity_data or [] if e.get('type') == 'value']:
             target_list = suggested_vals if entity.get('suggested') else vals
             target_list.append(entity['value'])
         return vals, suggested_vals
@@ -583,7 +583,7 @@ class FactManager(object):
 
         # Skip outcomes with low confidence rating
         if outcome['confidence'] < cls.CONFIDENCE_THRESHOLD:
-            raise_fn("Confidence={0}, threshold={1}".format(
+            raise_fn("Outcome confidence falls below threshold: {0} < {1}".format(
                     outcome['confidence'], cls.CONFIDENCE_THRESHOLD))
 
         # Expect at least 3 entities overall: relationship, subject and object
@@ -599,7 +599,7 @@ class FactManager(object):
         # Expect exactly one subject entity
         subjects = filter(lambda k: k in cls.SUBJECT_ENTITY_TYPES, entities.keys())
         if len(subjects) != 1:
-            raise_fn("Expected 1 subject entity, found {0}: {1}; possible subjects: {2}".format(
+            raise_fn("Expected 1 subject entity, found {0}: {1}".format(
                     len(subjects), subjects, cls.SUBJECT_ENTITY_TYPES))
 
         return outcome
