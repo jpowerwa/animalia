@@ -42,6 +42,31 @@ CREATE TABLE `incoming_facts` (
   UNIQUE KEY `fact_text_UNIQUE` (`fact_text`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- 
+-- insert known relationship type synonyms
+--
+INSERT INTO `relationship_types`
+(`relationship_type_name`, `relationship_type_id`)
+VALUES
+-- is
+('is',   'b93573ec-be70-4a2d-850b-4338ce75308f'),
+('isa',  'b93573ec-be70-4a2d-850b-4338ce75308f'),
+('is a', 'b93573ec-be70-4a2d-850b-4338ce75308f'),
 
+-- eat
+('eat',  'c1108ed8-fe18-4758-9d6e-4029de322407'),
+('eats', 'c1108ed8-fe18-4758-9d6e-4029de322407'),
 
+-- has
+('has',    '17511629-f91b-4bcd-8c03-01ae1500c134'),
+('hasa',   '17511629-f91b-4bcd-8c03-01ae1500c134'),
+('has a',  '17511629-f91b-4bcd-8c03-01ae1500c134'),
+('have',   '17511629-f91b-4bcd-8c03-01ae1500c134'),
+('have a', '17511629-f91b-4bcd-8c03-01ae1500c134'),
 
+-- lives
+('lives',    '34d72b28-423c-4e7d-8a40-457031d5735b'),
+('live',     '34d72b28-423c-4e7d-8a40-457031d5735b'),
+('live in',  '34d72b28-423c-4e7d-8a40-457031d5735b'),
+('lives in', '34d72b28-423c-4e7d-8a40-457031d5735b')
+;
