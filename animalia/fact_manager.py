@@ -344,7 +344,7 @@ class FactManager(object):
         if not relationship:
             relationship = fact_model.Relationship(subject=subject_concept,
                                                    object=object_concept,
-                                                   relationship_type=relationship_type,
+                                                   relationship_types=[relationship_type],
                                                    count=relationship_number,
                                                    fact_id=new_fact_id)
         return relationship

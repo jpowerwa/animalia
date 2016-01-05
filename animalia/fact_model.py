@@ -11,6 +11,7 @@ import uuid
 
 from flask_sqlalchemy import SQLAlchemy
 import sqlalchemy as sa
+import sqlalchemy.ext.associationproxy as sa_assoc_proxy
 import sqlalchemy.orm as sa_orm
 import sqlalchemy.types as sa_types
 
@@ -116,8 +117,9 @@ Relationship.subject = sa_orm.relationship(
     Concept, primaryjoin=Concept.concept_id==Relationship.subject_id, lazy=False)
 Relationship.object = sa_orm.relationship(
     Concept, primaryjoin=Concept.concept_id==Relationship.object_id, lazy=False)
-Relationship.relationship_type = sa_orm.relationship(RelationshipType, lazy=False)
-
+Relationship.relationship_types = sa_orm.relationship(RelationshipType, uselist=True, lazy=False) 
+Relationship.relationship_names = sa_assoc_proxy.association_proxy(
+    'relationship_types', 'relationship_type_name')
 
 class IncomingFact(db.Model):
     __tablename__ = 'incoming_facts'

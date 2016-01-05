@@ -635,7 +635,7 @@ class EnsureRelationshipTests(unittest.TestCase):
         # Verify result
         self.assertEqual(self.subj_concept, relationship.subject)
         self.assertEqual(self.obj_concept, relationship.object)
-        self.assertEqual(relationship_name, relationship.relationship_type.relationship_type_name)
+        self.assertEqual(relationship_name, relationship.relationship_names[0])
         self.assertIsNone(relationship.count)
         self.assertEqual(new_fact_id, relationship.fact_id)
 
@@ -659,7 +659,7 @@ class EnsureRelationshipTests(unittest.TestCase):
         # Verify result
         self.assertEqual(self.subj_concept, relationship.subject)
         self.assertEqual(self.obj_concept, relationship.object)
-        self.assertEqual(mock_rel_type, relationship.relationship_type)
+        self.assertEqual(mock_rel_type, relationship.relationship_types[0])
         self.assertIsNone(relationship.count)
         self.assertEqual(new_fact_id, relationship.fact_id)
 
