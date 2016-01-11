@@ -14,7 +14,7 @@ import json
 import mock
 
 from animalia import app
-from animalia.fact_manager import FactManager, IncomingFactError
+from animalia.fact_manager import FactManager, IncomingDataError
 
 
 class FactManagerTests(unittest.TestCase):
@@ -177,7 +177,7 @@ class FactManagerTests(unittest.TestCase):
         """
         # Set up mocks and test data
         fact_id = uuid.uuid4()
-        make_fact.side_effect = IncomingFactError('boo hoo')
+        make_fact.side_effect = IncomingDataError('boo hoo')
 
         # Make call
         response = self.post_fact('unparseable fact')
