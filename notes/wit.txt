@@ -7,9 +7,12 @@ intents
   animal_scales_fact
   animal_species_fact
 
+  animal_attribute_question
   animal_eat_query
+  animal_fur_question
   animal_how_many_question
   animal_place_question
+  animal_scales_query
   which_animal_question
 
 relationships
@@ -339,6 +342,34 @@ QUESTIONS
 },
 
 {
+        "_text": "which animals do not eat fish",
+        "msg_id": "47ee7020-f1f4-4857-9233-dc33c16e75a4",
+        "outcomes": [{
+                "_text": "which animals do not eat fish",
+                "confidence": 0.998,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "animals"
+                        }],
+                        "food": [{
+                                "type": "value",
+                                "value": "fish"
+                        }],
+                        "negation": [{
+                                "type": "value",
+                                "value": "not"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "eat"
+                        }]
+                },
+                "intent": "which_animal_question"
+        }]
+},
+
+{
         "_text": "does an otter have scales",
         "msg_id": "86c656cc-9702-4617-a401-0aa1315ac422",
         "outcomes": [{
@@ -460,7 +491,32 @@ QUESTIONS
                 },
                 "intent": "animal_how_many_question"
         }]
-}]
+},
+
+{
+        "_text": "do salmon have scales?",
+        "msg_id": "b559ea32-b773-4e24-a9d9-75a0932dd580",
+        "outcomes": [{
+                "_text": "do salmon have scales?",
+                "confidence": 0.612,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "Salmon"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "have"
+                        }],
+                        "scales": [{
+                                "type": "value",
+                                "value": "scales"
+                        }]
+                },
+                "intent": "animal_attribute_question"
+        }]
+}
+]
 
 ----------------------------------------------------------------------
 OUT OF SCOPE
