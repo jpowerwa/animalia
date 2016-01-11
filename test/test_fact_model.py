@@ -138,12 +138,24 @@ class RelationshipTypeTests(FactModelTestCase):
 class RelationshipTests(FactModelTestCase):
     """Verify Relationship ORM.
     """
-    def _get_concept(self, base_name):
-        """Return Concept with concept_name=base_name_<uuid> and arbitrary concept_id.
+    def _get_concept(self, concept_name):
+        """Return Concept with specified concept_name and, if new, arbitrary concept_id.
         """
-        return Concept(concept_name='{0}_{1}'.format(base_name, uuid.uuid4()),
-                       concept_id=uuid.uuid4())
+        concept = db.session.query(Concept).filter_by(concept_name=concept_name).first()
+        if not concept:
+            concept = Concept(concept_name=concept_name, concept_id=uuid.uuid4())
+        return concept
         
+    def _get_relationship_type(self, relationship_type_name):
+        """Return RelationshipType with specified name and, if new, arbitrary id.
+        """
+        rel_type = db.session.query(RelationshipType).filter_by(
+            relationship_type_name=relationship_type_name).first()
+        if not rel_type:
+            rel_type = RelationshipType(relationship_type_id=uuid.uuid4(),
+                                        relationship_type_name=relationship_type_name)
+        return rel_type
+
     def test_relationship(self):
         """Verify creation with all non-nullable data.
         """
@@ -273,6 +285,58 @@ class RelationshipTests(FactModelTestCase):
                                                             object_id=uuid.uuid4(),
                                                             relationship_type_id=uuid.uuid4())
         self.assertIsNone(retrieved_rel, "Expected to not find persisted Relationship")
+
+    def test_relationship__select_by_names(self):
+        """Verify select_by_names method.
+        """
+        # Concepts and relationships
+        fish = self._get_concept('fish')
+        frog = self._get_concept('frog')
+        animal = self._get_concept('animal')
+        food = self._get_concept('food')
+        is_relationship_type = self._get_relationship_type('is')
+        eats_relationship_type = self._get_relationship_type('eats')
+
+        # 'fish is animal'
+        fish_is_animal_id = uuid.uuid4()
+        relationship = Relationship(relationship_id=fish_is_animal_id,
+                                    subject=fish,
+                                    object=animal,
+                                    relationship_types=[is_relationship_type])
+        db.session.add(relationship)
+        
+        # 'fish is food'
+        fish_is_food_id = uuid.uuid4()
+        relationship = Relationship(relationship_id=fish_is_food_id,
+                                    subject=fish,
+                                    object=food,
+                                    relationship_types=[is_relationship_type])
+        db.session.add(relationship)
+
+        # 'frog is animal'
+        frog_is_animal_id = uuid.uuid4()
+        relationship = Relationship(relationship_id=frog_is_animal_id,
+                                    subject=frog,
+                                    object=animal,
+                                    relationship_types=[is_relationship_type])
+        db.session.add(relationship)
+
+        # 'fish eats frog'
+        fish_eats_frog_id = uuid.uuid4()
+        relationship = Relationship(relationship_id=fish_eats_frog_id,
+                                    subject=fish,
+                                    object=frog,
+                                    relationship_types=[eats_relationship_type])
+        db.session.add(relationship)
+        self.reset_session()
+
+        # select by names
+        rel = Relationship.select_by_names(subject_name='fish',
+                                           object_name='animal',
+                                           relationship_type_name='is')
+        self.assertIsNotNone(rel)
+        self.assertEqual(rel.relationship_id, fish_is_animal_id)
+
 
     def test_relationship__subject_relation(self):
         """Verify subject relation on Relationship.
@@ -463,6 +527,54 @@ class RelationshipTests(FactModelTestCase):
         self.assertIsNotNone(db.session.query(Concept).filter_by(
                 concept_id=object_concept.concept_id).one())
 
+    def test_concept_types_relationship(self):
+        """Test simple concept_types relationship: two concepts and one relationship.
+        """
+        rel_id = uuid.uuid4()
+        subject_concept = self._get_concept('flat')
+        object_concept =  self._get_concept('shoe')
+        rel_type = self._get_relationship_type('is')
+        relationship = Relationship(relationship_id=rel_id,
+                                    subject=subject_concept,
+                                    object=object_concept,
+                                    relationship_types=[rel_type])
+        db.session.add(relationship)
+        self.reset_session()
+
+        # select concept
+        subject_concept = db.session.query(Concept).filter_by(
+            concept_id=subject_concept.concept_id).first()
+        self.assertIsNotNone(subject_concept)
+        self.assertEqual(1, len(subject_concept.concept_types))
+        self.assertEqual(object_concept.concept_id, 
+                         subject_concept.concept_types[0].object.concept_id)
+
+    def test_concept_types_relationship__multiple(self):
+        """Test concept_types on one concept that is two different things.
+        """
+        fish = self._get_concept('fish')
+        animal =  self._get_concept('animal')
+        food =  self._get_concept('food')
+        rel_type = self._get_relationship_type('is')
+        relationship = Relationship(subject=fish,
+                                    object=animal,
+                                    relationship_types=[rel_type])
+        db.session.add(relationship)
+        relationship = Relationship(subject=fish,
+                                    object=food,
+                                    relationship_types=[rel_type])
+        db.session.add(relationship)
+        self.reset_session()
+
+        # select concept
+        fish = db.session.query(Concept).filter_by(concept_id=fish.concept_id).first()
+        self.assertIsNotNone(fish)
+        
+        # check concept_types relationships
+        self.assertEqual(2, len(fish.concept_types))
+        self.assertEqual(set([animal.concept_id, food.concept_id]),
+                         set([r.object.concept_id for r in fish.concept_types]))
+
 
 class IncomingFactTests(FactModelTestCase):
     """Verify IncomingFact ORM.
@@ -582,3 +694,5 @@ class IncomingFactTests(FactModelTestCase):
         retrieved_fact = IncomingFact.select_by_text('abracadabra')
         self.assertIsNone(retrieved_fact, "Expected not to find persisted IncomingFact")
 
+
+    

@@ -113,6 +113,29 @@ class Relationship(db.Model):
             cls.relationship_type_id == relationship_type_id)
         return db.session.query(cls).filter(filter_clause).first()
 
+    @classmethod
+    def select_by_names(cls, subject_name=None, object_name=None, relationship_type_name=None):
+        """Select Relationship with specified subject, object and relationship type.
+
+        :rtype: py:class:`~fact_model.Relationship`
+        :return: matching relationship; None if not found
+
+        :type subject_name: unicode
+        :type object_name: unicode
+        :type relationship_type_name: unicode
+
+        """
+        subject_concept = sa_orm.aliased(Concept)
+        object_concept = sa_orm.aliased(Concept)
+        return db.session.query(cls).\
+            join(RelationshipType).\
+            join(subject_concept, Relationship.subject_id==subject_concept.concept_id).\
+            join(object_concept, Relationship.object_id==object_concept.concept_id).\
+            filter(RelationshipType.relationship_type_name==relationship_type_name).\
+            filter(subject_concept.concept_name==subject_name).\
+            filter(object_concept.concept_name==object_name).\
+            first()
+
 Relationship.subject = sa_orm.relationship(
     Concept, primaryjoin=Concept.concept_id==Relationship.subject_id, lazy=False)
 Relationship.object = sa_orm.relationship(
@@ -120,6 +143,15 @@ Relationship.object = sa_orm.relationship(
 Relationship.relationship_types = sa_orm.relationship(RelationshipType, uselist=True, lazy=False) 
 Relationship.relationship_names = sa_assoc_proxy.association_proxy(
     'relationship_types', 'relationship_type_name')
+
+Concept.concept_types = sa_orm.relationship(
+    Relationship, 
+    primaryjoin=(
+        sa.and_(Relationship.subject_id==Concept.concept_id,
+                sa.and_(Relationship.relationship_type_id==RelationshipType.relationship_type_id,
+                        RelationshipType.relationship_type_name=='is'))),
+    uselist=True, 
+    lazy=True)
 
 class IncomingFact(db.Model):
     __tablename__ = 'incoming_facts'
