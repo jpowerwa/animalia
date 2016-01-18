@@ -13,6 +13,7 @@ intents
   animal_how_many_question
   animal_place_question
   animal_scales_query
+  animal_species_fact
   which_animal_question
 
 relationships
@@ -206,293 +207,7 @@ FACTS
 ----------------------------------------------------------------------
 QUESTIONS
 
-[{
-        "_text": "how many legs does the otter have",
-        "msg_id": "5a1ef294-851e-42a4-b440-acea33cc81c0",
-        "outcomes": [{
-                "_text": "how many legs does the otter have",
-                "confidence": 0.918,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "otter"
-                        }],
-                        "body_part": [{
-                                "type": "value",
-                                "value": "legs"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "have"
-                        }]
-                },
-                "intent": "animal_how_many_question"
-        }]
-},
-
-{
-        "_text": "where does the otter live",
-        "msg_id": "2c39d2fa-5b12-4045-b196-db7fc38217dc",
-        "outcomes": [{
-                "_text": "where does the otter live",
-                "confidence": 0.995,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "otter"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "where"
-                        }, {
-                                "type": "value",
-                                "value": "live"
-                        }]
-                },
-                "intent": "animal_place_question"
-        }]
-},
-
-{
-        "_text": "How many animals have fur",
-        "msg_id": "3d64597f-34fa-471d-b1e4-c57606c23309",
-        "outcomes": [{
-                "_text": "How many animals have fur",
-                "confidence": 0.989,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "animals"
-                        }],
-                        "fur": [{
-                                "type": "value",
-                                "value": "fur"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "have"
-                        }]
-                },
-                "intent": "animal_how_many_question"
-        }]
-},
-
-{
-        "_text": "what does the otter eat",
-        "msg_id": "69b5c8e8-474c-4fd2-ab7b-56ad77d19616",
-        "outcomes": [{
-                "_text": "what does the otter eat",
-                "confidence": 0.989,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "otter"
-                        }]
-                },
-                "intent": "animal_eat_query"
-        }]
-},
-
-{
-        "_text": "do mammals live in the ocean",
-        "msg_id": "fe21c998-cb38-42ca-a8d2-b200460fdc48",
-        "outcomes": [{
-                "_text": "do mammals live in the ocean",
-                "confidence": 0.989,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "mammals"
-                        }],
-                        "place": [{
-                                "type": "value",
-                                "value": "ocean"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "live in"
-                        }]
-                },
-                "intent": "animal_place_fact"
-        }]
-},
-
-{
-        "_text": "which animals eat fish",
-        "msg_id": "20e2f67f-9d50-4299-a364-644c541d7833",
-        "outcomes": [{
-                "_text": "which animals eat fish",
-                "confidence": 0.998,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "animals"
-                        }],
-                        "food": [{
-                                "type": "value",
-                                "value": "fish"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "eat"
-                        }]
-                },
-                "intent": "which_animal_question"
-        }]
-},
-
-{
-        "_text": "which animals do not eat fish",
-        "msg_id": "47ee7020-f1f4-4857-9233-dc33c16e75a4",
-        "outcomes": [{
-                "_text": "which animals do not eat fish",
-                "confidence": 0.998,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "animals"
-                        }],
-                        "food": [{
-                                "type": "value",
-                                "value": "fish"
-                        }],
-                        "negation": [{
-                                "type": "value",
-                                "value": "not"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "eat"
-                        }]
-                },
-                "intent": "which_animal_question"
-        }]
-},
-
-{
-        "_text": "does an otter have scales",
-        "msg_id": "86c656cc-9702-4617-a401-0aa1315ac422",
-        "outcomes": [{
-                "_text": "does an otter have scales",
-                "confidence": 0.911,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "otter"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "have"
-                        }],
-                        "scales": [{
-                                "type": "value",
-                                "value": "scales"
-                        }]
-                },
-                "intent": "animal_scales_fact"
-                }]
-},
-
-{
-        "_text": "does an otter have fur",
-        "msg_id": "959903fd-52c7-4d92-8d86-2b7b2a219d66",
-        "outcomes": [{
-                "_text": "does an otter have fur",
-                "confidence": 0.977,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "otter"
-                        }],
-                        "fur": [{
-                                "type": "value",
-                                "value": "fur"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "have"
-                        }]
-                },
-                "intent": "animal_fur_fact"
-        }]
-},
-
-{
-        "_text": "does an otter eat mammals",
-        "msg_id": "cab9fb21-6ab6-4bb4-aa2d-0457449cdf37",
-        "outcomes": [{
-                "_text": "does an otter eat mammals",
-                "confidence": 0.477,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "otter"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "eat"
-                        }],
-                        "species": [{
-                                "type": "value",
-                                "value": "mammals"
-                        }]
-                },
-                "intent": "animal_species_fact"
-        }]
-},
-
-{
-        "_text": "how many animals eat fish",
-        "msg_id": "2620a913-c4b7-4654-ba8e-77038e934232",
-        "outcomes": [{
-                "_text": "how many animals eat fish",
-                "confidence": 0.994,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "animals"
-                        }],
-                        "food": [{
-                                "type": "value",
-                                "value": "fish"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "eat"
-                        }]
-                },
-                "intent": "animal_how_many_question"
-        }]
-},
-
-{
-        "_text": "how many animals do not eat fish",
-        "msg_id": "060d2410-8a75-4eb5-ac63-ea1f07cf3c96",
-        "outcomes": [{
-                "_text": "how many animals do not eat fish",
-                "confidence": 0.991,
-                "entities": {
-                        "animal": [{
-                                "type": "value",
-                                "value": "animals"
-                        }],
-                        "food": [{
-                                "type": "value",
-                                "value": "fish"
-                        }],
-                        "negation": [{
-                                "type": "value",
-                                "value": "not"
-                        }],
-                        "relationship": [{
-                                "type": "value",
-                                "value": "eat"
-                        }]
-                },
-                "intent": "animal_how_many_question"
-        }]
-},
-
+[
 {
         "_text": "do salmon have scales?",
         "msg_id": "b559ea32-b773-4e24-a9d9-75a0932dd580",
@@ -515,8 +230,387 @@ QUESTIONS
                 },
                 "intent": "animal_attribute_question"
         }]
+},
+
+{
+        "_text": "what does the otter eat?",
+        "msg_id": "cae6586f-1082-46f7-93fa-5f1683e32859",
+        "outcomes": [{
+                "_text": "what does the otter eat?",
+                "confidence": 0.992,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }]
+                },
+                "intent": "animal_eat_query"
+        }]
+},
+
+{
+        "_text": "what food does the otter eat?",
+        "msg_id": "9dcaec15-aca3-4b51-bacf-8c99ea0ed703",
+        "outcomes": [{
+                "_text": "what food does the otter eat?",
+                "confidence": 0.972,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }]
+                },
+                "intent": "animal_eat_query"
+        }]
+},
+
+{
+        "_text": "does an otter eat fish?",
+        "msg_id": "0300a357-babd-416d-9eda-3b8d98f5ecc6",
+        "outcomes": [{
+                "_text": "does an otter eat fish?",
+                "confidence": 0.747,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }],
+                        "food": [{
+                                "type": "value",
+                                "value": "fish"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "eat"
+                        }]
+                },
+                "intent": "animal_eat_fact"
+        }]
+},
+
+{
+        "_text": "does an otter have fur?",
+        "msg_id": "d19a9fd4-e2d5-4f9c-8a04-89aa1e84718f",
+        "outcomes": [{
+                "_text": "does an otter have fur?",
+                "confidence": 0.529,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }],
+                        "fur": [{
+                                "type": "value",
+                                "value": "fur"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "have"
+                        }]
+                },
+                "intent": "animal_fur_fact"
+        }]
+},
+
+{
+        "_text": "how many legs does the otter have?",
+        "msg_id": "99d81e49-4310-4706-b92a-aa3611fb403f",
+        "outcomes": [{
+                "_text": "how many legs does the otter have?",
+                "confidence": 0.924,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }],
+                        "body_part": [{
+                                "type": "value",
+                                "value": "legs"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "have"
+                        }]
+                },
+                "intent": "animal_how_many_question"
+        }]
+},
+
+{
+        "_text": "how many animals have legs?",
+        "msg_id": "2d728fcc-e759-488a-8806-4790c662230d",
+        "outcomes": [{
+                "_text": "how many animals have legs?",
+                "confidence": 0.997,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "animals"
+                        }],
+                        "body_part": [{
+                                "type": "value",
+                                "value": "legs"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "have"
+                        }]
+                },
+                "intent": "animal_how_many_question"
+        }]
+},
+
+{
+        "_text": "how many animals have fur?",
+        "msg_id": "d302e7be-4075-487f-a759-2496c9cffa58",
+        "outcomes": [{
+                "_text": "how many animals have fur?",
+                "confidence": 0.996,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "animals"
+                        }],
+                        "fur": [{
+                                "type": "value",
+                                "value": "fur"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "have"
+                        }]
+                },
+                "intent": "animal_how_many_question"
+        }]
+},
+
+{
+        "_text": "how many animals do not have fur?",
+        "msg_id": "ade6fede-3e04-440c-9f20-0c10d7d46cd4",
+        "outcomes": [{
+                "_text": "how many animals do not have fur?",
+                "confidence": 0.993,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "animals"
+                        }],
+                        "fur": [{
+                                "type": "value",
+                                "value": "fur"
+                        }],
+                        "negation": [{
+                                "type": "value",
+                                "value": "not"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "have"
+                        }]
+                },
+                "intent": "animal_how_many_question"
+        }]
+},
+
+{
+        "_text": "where does the otter live?",
+        "msg_id": "61698541-f8bb-4d67-bcc2-c67f44d22e66",
+        "outcomes": [{
+                "_text": "where does the otter live?",
+                "confidence": 0.998,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "where"
+                        }, {
+                                "type": "value",
+                                "value": "live"
+                        }]
+                },
+                "intent": "animal_place_question"
+        }]
+},
+
+{
+        "_text": "do otters live in the ocean?",
+        "msg_id": "efeac713-0e31-43b8-afbd-c5fbaa11dfb3",
+        "outcomes": [{
+                "_text": "do otters live in the ocean?",
+                "confidence": 0.998,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "Otters"
+                        }],
+                        "place": [{
+                                "type": "value",
+                                "value": "ocean"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "live in"
+                        }]
+                },
+                "intent": "animal_place_fact"
+        }]
+},
+
+{
+        "_text": "does an otter have scales?",
+        "msg_id": "ac13ef80-b5f0-4a65-a9f7-3b0b783a87f0",
+        "outcomes": [{
+                "_text": "does an otter have scales?",
+                "confidence": 0.915,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "have"
+                        }],
+                        "scales": [{
+                                "type": "value",
+                                "value": "scales"
+                        }]
+                },
+                "intent": "animal_scales_query"
+        }]
+},
+
+{
+        "_text": "is the otter a mammal?",
+        "msg_id": "e886710e-6dc0-413b-bc96-ef3edcbbeaa4",
+        "outcomes": [{
+                "_text": "is the otter a mammal?",
+                "confidence": 0.545,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }],
+                        "relationship": [{
+                                "suggested": true,
+                                "type": "value",
+                                "value": "a"
+                        }, {
+                                "type": "value",
+                                "value": "is"
+                        }],
+                        "species": [{
+                                "type": "value",
+                                "value": "mammal"
+                        }]
+                },
+                "intent": "animal_species_fact"
+        }]
+},
+
+{
+        "_text": "does an otter eat mammals?",
+        "msg_id": "df17280f-8601-4771-bd68-0e6cc178e69b",
+        "outcomes": [{
+                "_text": "does an otter eat mammals?",
+                "confidence": 0.293,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "otter"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "eat"
+                        }],
+                        "species": [{
+                                "type": "value",
+                                "value": "mammals"
+                        }]
+                },
+                "intent": "animal_species_fact"
+        }]
+},
+
+{
+        "_text": "which animals eat fish?",
+        "msg_id": "afb5bff4-1d78-4c94-a127-ea6b338122a7",
+        "outcomes": [{
+                "_text": "which animals eat fish?",
+                "confidence": 0.999,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "animals"
+                        }],
+                        "food": [{
+                                "type": "value",
+                                "value": "fish"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "eat"
+                        }]
+                },
+                "intent": "which_animal_question"
+        }]
+},
+
+{
+        "_text": "which animals do not eat fish?",
+        "msg_id": "2490201a-67d6-4015-9304-fc134c120859",
+        "outcomes": [{
+                "_text": "which animals do not eat fish?",
+                "confidence": 0.999,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "animals"
+                        }],
+                        "food": [{
+                                "type": "value",
+                                "value": "fish"
+                        }],
+                        "negation": [{
+                                "type": "value",
+                                "value": "not"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "eat"
+                        }]
+                },
+                "intent": "which_animal_question"
+        }]
+},
+
+{
+        "_text": "which animals are mammals?",
+        "msg_id": "95d3211f-90ae-497f-a323-959d908c7de6",
+        "outcomes": [{
+                "_text": "which animals are mammals?",
+                "confidence": 0.999,
+                "entities": {
+                        "animal": [{
+                                "type": "value",
+                                "value": "mammals"
+                        }, {
+                                "type": "value",
+                                "value": "animals"
+                        }],
+                        "relationship": [{
+                                "type": "value",
+                                "value": "are"
+                        }]
+                },
+                "intent": "which_animal_question"
+        }]
 }
 ]
+
 
 ----------------------------------------------------------------------
 OUT OF SCOPE
