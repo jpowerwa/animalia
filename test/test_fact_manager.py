@@ -184,7 +184,7 @@ class SaveParsedFactTests(unittest.TestCase):
                                          subject_type='animal',
                                          object_name='mammal',
                                          object_type='species',
-                                         relationship_name='is a')
+                                         relationship_type_name='is a')
         mock_subject_concept = Mock(name='subject_concept')
         mock_object_concept = Mock(name='object_concept')
         ensure_concept.side_effect = [mock_subject_concept, mock_object_concept]
@@ -210,7 +210,7 @@ class SaveParsedFactTests(unittest.TestCase):
 
         ensure_relationship.assert_called_once_with(mock_subject_concept,
                                                     mock_object_concept,
-                                                    relationship_name='is a',
+                                                    relationship_type_name='is a',
                                                     relationship_number=None,
                                                     new_fact_id=new_fact_id,
                                                     error_on_duplicate=True)
@@ -225,7 +225,7 @@ class SaveParsedFactTests(unittest.TestCase):
                                          subject_type='animal',
                                          object_name='mammal',
                                          object_type='species',
-                                         relationship_name='is a')
+                                         relationship_type_name='is a')
         dup_fact_id = uuid.uuid4()
         select_fact.return_value = mock_fact = Mock(name='fact')
         ensure_concept.side_effect = [Mock(name='subject_concept'), Mock(name='object_concept')]
@@ -277,7 +277,7 @@ class EnsureConceptWithTypeTests(unittest.TestCase):
         
         ensure_relationship.assert_called_once_with(mock_subj_concept, 
                                                     mock_subj_type_concept,
-                                                    relationship_name='is',
+                                                    relationship_type_name='is',
                                                     new_fact_id=mock_fact_id,
                                                     error_on_duplicate=False)
 
@@ -292,24 +292,25 @@ class EnsureRelationshipTests(unittest.TestCase):
         self.obj_concept = Mock(name='obj_concept', concept_id=uuid.uuid4())
 
     def test_ensure_relationship(self, select_type_by_name, select_relationship):
-        """Verify calls made by _ensure_relationship for new relationship and relationship_name.
+        """Verify calls made for new relationship and relationship_type_name.
         """
         # Set up mocks and test data
         select_type_by_name.return_value = None
         select_relationship.return_value = None
-        relationship_name = 'aunt'
+        relationship_type_name = 'aunt'
         new_fact_id = uuid.uuid4()
 
         # Make call
-        relationship = FactManager._ensure_relationship(self.subj_concept, 
-                                                        self.obj_concept,
-                                                        relationship_name=relationship_name,
-                                                        new_fact_id=new_fact_id)
+        relationship = FactManager._ensure_relationship(
+            self.subj_concept, 
+            self.obj_concept,
+            relationship_type_name=relationship_type_name,
+            new_fact_id=new_fact_id)
 
         # Verify result
         self.assertEqual(self.subj_concept, relationship.subject)
         self.assertEqual(self.obj_concept, relationship.object)
-        self.assertEqual(relationship_name, relationship.relationship_names[0])
+        self.assertEqual(relationship_type_name, relationship.relationship_type_names[0])
         self.assertIsNone(relationship.count)
         self.assertEqual(new_fact_id, relationship.fact_id)
 
@@ -327,7 +328,7 @@ class EnsureRelationshipTests(unittest.TestCase):
         # Make call
         relationship = FactManager._ensure_relationship(self.subj_concept, 
                                                         self.obj_concept,
-                                                        relationship_name=r_name,
+                                                        relationship_type_name=r_name,
                                                         new_fact_id=new_fact_id)
 
         # Verify result
@@ -355,7 +356,7 @@ class EnsureRelationshipTests(unittest.TestCase):
         # Make call
         relationship = FactManager._ensure_relationship(self.subj_concept, 
                                                         self.obj_concept,
-                                                        relationship_name=r_name,
+                                                        relationship_type_name=r_name,
                                                         new_fact_id=uuid.uuid4())
         # Verify result
         self.assertEqual(relationship, mock_rel)
@@ -379,7 +380,7 @@ class EnsureRelationshipTests(unittest.TestCase):
             FactManager._ensure_relationship,
             self.subj_concept, 
             self.obj_concept,
-            relationship_name=r_name,
+            relationship_type_name=r_name,
             new_fact_id=uuid.uuid4(),
             error_on_duplicate=True)
 
@@ -404,7 +405,7 @@ class EnsureRelationshipTests(unittest.TestCase):
             FactManager._ensure_relationship,
             self.subj_concept, 
             self.obj_concept,
-            relationship_name=r_name,
+            relationship_type_name=r_name,
             new_fact_id=uuid.uuid4(),
             error_on_duplicate=True)
 
@@ -429,7 +430,7 @@ class EnsureRelationshipTests(unittest.TestCase):
             FactManager._ensure_relationship,
             self.subj_concept, 
             self.obj_concept,
-            relationship_name=r_name,
+            relationship_type_name=r_name,
             relationship_number=3,
             new_fact_id=uuid.uuid4(),
             error_on_duplicate=True)
@@ -455,7 +456,7 @@ class EnsureRelationshipTests(unittest.TestCase):
             FactManager._ensure_relationship,
             self.subj_concept, 
             self.obj_concept,
-            relationship_name=r_name,
+            relationship_type_name=r_name,
             relationship_number=new_count,
             new_fact_id=uuid.uuid4(),
             error_on_duplicate=True)
@@ -474,7 +475,7 @@ class EnsureRelationshipTests(unittest.TestCase):
         # Make call
         relationship = FactManager._ensure_relationship(self.subj_concept, 
                                                         self.obj_concept,
-                                                        relationship_name=r_name,
+                                                        relationship_type_name=r_name,
                                                         relationship_number=2,
                                                         new_fact_id=uuid.uuid4())
         # Verify result
@@ -551,7 +552,7 @@ class ParsedSentenceTests(unittest.TestCase):
         self.assertEqual('animal', parsed_sentence.subject_type)
         self.assertEqual('mammal', parsed_sentence.object_name)
         self.assertEqual('species', parsed_sentence.object_type)
-        self.assertEqual('is a', parsed_sentence.relationship_name)
+        self.assertEqual('is a', parsed_sentence.relationship_type_name)
         self.assertIsNone(parsed_sentence.relationship_number)
         self.assertFalse(parsed_sentence.relationship_negation)
         self.assertEqual(json.dumps(self.parsed_data), parsed_sentence.orig_response)
@@ -568,7 +569,7 @@ class ParsedSentenceTests(unittest.TestCase):
         self.assertEqual('animal', parsed_sentence.subject_type)
         self.assertEqual('legs', parsed_sentence.object_name)
         self.assertEqual('body_part', parsed_sentence.object_type)
-        self.assertEqual('has', parsed_sentence.relationship_name)
+        self.assertEqual('has', parsed_sentence.relationship_type_name)
         self.assertEqual(4, parsed_sentence.relationship_number)
         self.assertFalse(parsed_sentence.relationship_negation)
         self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
@@ -585,11 +586,11 @@ class ParsedSentenceTests(unittest.TestCase):
         self.assertEqual('animal', parsed_sentence.subject_type)
         self.assertEqual('fish', parsed_sentence.object_name)
         self.assertEqual('food', parsed_sentence.object_type)
-        self.assertEqual('eat', parsed_sentence.relationship_name)
+        self.assertEqual('eat', parsed_sentence.relationship_type_name)
         self.assertTrue(parsed_sentence.relationship_negation)
         self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
 
-    def test_from_wit_response__multiple_relationship_names(self):
+    def test_from_wit_response__multiple_relationship_type_names(self):
         """Verify that outcome with multiple relationship names is handled.
         """
         self.parsed_data['outcomes'][0]['entities']['relationship'].append(
@@ -599,7 +600,7 @@ class ParsedSentenceTests(unittest.TestCase):
         self.assertEqual(1, log_warn.call_count)
         self.assertTrue(log_warn.call_args[0][0].startswith('Multiple relationship names'))
         self.assertEqual('the otter is a mammal', parsed_sentence.text)
-        self.assertEqual('is a', parsed_sentence.relationship_name)
+        self.assertEqual('is a', parsed_sentence.relationship_type_name)
 
     def test_from_wit_response__no_text_attr(self):
         """Verify that parsed data without _text attribute fails.

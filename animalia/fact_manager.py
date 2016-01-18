@@ -222,13 +222,13 @@ class FactManager(object):
         # Ensure 'is' relationship for subject and type, e.g. 'otter is animal'
         is_relationship = cls._ensure_relationship(subject_concept,
                                                    type_concept,
-                                                   relationship_name='is',
+                                                   relationship_type_name='is',
                                                    new_fact_id=new_fact_id,
                                                    error_on_duplicate=False)
         return is_relationship.subject
 
     @classmethod
-    def _ensure_relationship(cls, subject_concept, object_concept, relationship_name=None, 
+    def _ensure_relationship(cls, subject_concept, object_concept, relationship_type_name=None, 
                              relationship_number=None, new_fact_id=None, error_on_duplicate=False):
         """Select or create Relationship ORM for provided data.
 
@@ -244,8 +244,8 @@ class FactManager(object):
         :type object_concept: :py:class:`~fact_model.Concept`
         :arg object: object of relationship
 
-        :type relationship_name: unicode
-        :arg relationship_name: name of relationship, e.g. 'is', 'lives', 'eats'
+        :type relationship_type_name: unicode
+        :arg relationship_type_name: name of relationship, e.g. 'is', 'lives', 'eats'
         
         :type relationship_number: int
         :arg relationship_number: optional number associated with relationship, e.g. number of legs
@@ -258,10 +258,10 @@ class FactManager(object):
         
         """
         # Find or create relevant RelationshipType
-        relationship_type = fact_model.RelationshipType.select_by_name(relationship_name)
+        relationship_type = fact_model.RelationshipType.select_by_name(relationship_type_name)
         if not relationship_type:
             relationship_type = fact_model.RelationshipType(
-                relationship_type_name=relationship_name)
+                relationship_type_name=relationship_type_name)
 
         # If subject and object concepts and relationship type all exist, check for existing
         # relationship.
@@ -285,7 +285,7 @@ class FactManager(object):
                             fact_id=relationship.fact_id,
                             subj=subject_concept.concept_name,
                             obj=object_concept.concept_name,
-                            rel=relationship_name),
+                            rel=relationship_type_name),
                         duplicate_fact_id=relationship.fact_id)
 
             elif relationship.count is not None and relationship_number != relationship.count:
@@ -296,7 +296,7 @@ class FactManager(object):
                         fact_id=relationship.fact_id,
                         subj=subject_concept.concept_name,
                         obj=object_concept.concept_name,
-                        rel=relationship_name,
+                        rel=relationship_type_name,
                         current_count=relationship.count,
                         new_count=relationship_number),
                     conflicting_fact_id=relationship.fact_id)
@@ -402,7 +402,7 @@ class FactManager(object):
             relationship = cls._ensure_relationship(
                 subject_concept,
                 object_concept,
-                relationship_name=parsed_sentence.relationship_name,
+                relationship_type_name=parsed_sentence.relationship_type_name,
                 relationship_number=parsed_sentence.relationship_number,
                 new_fact_id=new_fact_id,
                 error_on_duplicate=True)
@@ -440,7 +440,8 @@ class ParsedSentence(object):
 
     def __init__(self, text=None, confidence=None, intent=None, 
                  subject_name=None, subject_type=None, object_name=None, object_type=None,
-                 relationship_name=None, relationship_number=None, relationship_negation=False):
+                 relationship_type_name=None, relationship_number=None, 
+                 relationship_negation=False):
         """
         :type text: unicode
         :type confidence: float
@@ -449,7 +450,7 @@ class ParsedSentence(object):
         :type subject_type: unicode
         :type object_name: unicode
         :type object_type: unicode
-        :type relationship_name: unicode
+        :type relationship_type_name: unicode
         :type relationship_number: int
         :type relationship_negation: bool
         
@@ -461,7 +462,7 @@ class ParsedSentence(object):
         self.subject_type = subject_type
         self.object_name = object_name
         self.object_type = object_type
-        self.relationship_name = relationship_name
+        self.relationship_type_name = relationship_type_name
         self.relationship_number = relationship_number or None
         self.relationship_negation = relationship_negation
         self.orig_response = None
@@ -524,7 +525,7 @@ class ParsedSentence(object):
                 if len(vals) > 1:
                     logger.warn("Multiple relationship names: {0}; ignoring all but '{1}'".format(
                             vals, vals[0]))
-                instance.relationship_name = vals[0]
+                instance.relationship_type_name = vals[0]
 
             elif entity_type == cls.RELATIONSHIP_COUNT_KEY:
                 if len(vals) > 1:
@@ -574,7 +575,7 @@ class ParsedSentence(object):
         if not instance.subject_type:
             raise ValueError("No subject entity found")
         if not relationship_optional:
-            if not instance.relationship_name:
+            if not instance.relationship_type_name:
                 raise ValueError("No relationship entity found")
             if not instance.object_type: 
                 raise ValueError("No object entity found")
