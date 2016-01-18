@@ -589,6 +589,18 @@ class ParsedSentenceTests(unittest.TestCase):
         self.assertTrue(parsed_sentence.relationship_negation)
         self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
 
+    def test_from_wit_response__multiple_relationship_names(self):
+        """Verify that outcome with multiple relationship names is handled.
+        """
+        self.parsed_data['outcomes'][0]['entities']['relationship'].append(
+            {'type': 'value', 'value': 'another_relationship'})
+        with patch.object(logger, 'warn') as log_warn:
+            parsed_sentence = ParsedSentence.from_wit_response(self.parsed_data)
+        self.assertEqual(1, log_warn.call_count)
+        self.assertTrue(log_warn.call_args[0][0].startswith('Multiple relationship names'))
+        self.assertEqual('the otter is a mammal', parsed_sentence.text)
+        self.assertEqual('is a', parsed_sentence.relationship_name)
+
     def test_from_wit_response__no_text_attr(self):
         """Verify that parsed data without _text attribute fails.
         """
@@ -631,16 +643,6 @@ class ParsedSentenceTests(unittest.TestCase):
         del self.parsed_data['outcomes'][0]['entities']['relationship']
         self.assertRaisesRegexp(ValueError,
                                 'No relationship entity found',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_from_wit_response__multiple_relationship_entities(self):
-        """Verify that outcome with multiple relationship entities fails.
-        """
-        self.parsed_data['outcomes'][0]['entities']['relationship'].append(
-            {'type': 'value', 'value': 'lives'})
-        self.assertRaisesRegexp(ValueError,
-                                'Expected 1 relationship name, found 2: ',
                                 ParsedSentence.from_wit_response,
                                 self.parsed_data)
 

@@ -63,7 +63,7 @@ class DuplicateFactError(IncomingDataError):
 
 
 class FactManager(object):
-    """
+    """Manage lifecycle of persisted facts.
     """
 
     # Initialize wit exactly once
@@ -515,9 +515,9 @@ class ParsedSentence(object):
                 if suggested_vals:
                     logger.warn("Skipping suggested relationship names: {0}".format(
                             suggested_vals))
-                if len(vals) != 1:
-                    raise ValueError("Expected 1 relationship name, found {0}: {1}".format(
-                            len(vals), vals))
+                if len(vals) > 1:
+                    logger.warn("Multiple relationship names: {0}; ignoring all but '{1}'".format(
+                            vals, vals[0]))
                 instance.relationship_name = vals[0]
 
             elif entity_type == cls.RELATIONSHIP_COUNT_KEY:
@@ -547,7 +547,7 @@ class ParsedSentence(object):
                     logger.warn("Skipping suggested subjects for type {0}: {1}".format(
                             instance.subject_type, suggested_vals))
                 if len(vals) > 1:
-                    logger.warn("Multiple subjects for type {0}: {1}; ignoring all but {2}".format(
+                    logger.warn("Multiple subjects for type {0}: {1}; ignoring all but '{2}'".format(
                             instance.subject_type, vals, vals[0]))
                 instance.subject_name = vals[0]
 
