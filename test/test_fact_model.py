@@ -286,9 +286,7 @@ class RelationshipTests(FactModelTestCase):
                                                             relationship_type_id=uuid.uuid4())
         self.assertIsNone(retrieved_rel, "Expected to not find persisted Relationship")
 
-    def test_relationship__select_by_names(self):
-        """Verify select_by_names method.
-        """
+    def _setup_relationships(self):
         # Concepts and relationships
         fish = self._get_concept('fish')
         frog = self._get_concept('frog')
@@ -330,13 +328,49 @@ class RelationshipTests(FactModelTestCase):
         db.session.add(relationship)
         self.reset_session()
 
-        # select by names
-        rel = Relationship.select_by_names(subject_name='fish',
-                                           object_name='animal',
-                                           relationship_type_name='is')
-        self.assertIsNotNone(rel)
-        self.assertEqual(rel.relationship_id, fish_is_animal_id)
+    def test_relationship__select_by_names(self):
+        """Verify select_by_names method.
+        """
+        self._setup_relationships()
+        matches = Relationship.select_by_names(relationship_type_name='is',
+                                               subject_name='fish',
+                                               object_name='animal')
+        self.assertEqual(1, len(matches))
+        rel = matches[0]
+        self.assertTrue('is' in rel.relationship_names)
+        self.assertEqual('fish', rel.subject.concept_name)
+        self.assertEqual('animal', rel.object.concept_name)
 
+    def test_relationship__select_by_names__no_subject(self):
+        """Verify select_by_names method with no subject name provided.
+        """
+        self._setup_relationships()
+        matches = Relationship.select_by_names(relationship_type_name='is',
+                                               object_name='animal')
+        self.assertEqual(2, len(matches))
+        self.assertEqual(set(['fish', 'frog']),
+                         set([s.concept_name for s in [m.subject for m in matches]]))
+
+    def test_relationship__select_by_names__no_object(self):
+        """Verify select_by_names method with no object name provided.
+        """
+        self._setup_relationships()
+        matches = Relationship.select_by_names(relationship_type_name='is',
+                                               subject_name='fish')
+        self.assertEqual(2, len(matches))
+        self.assertEqual(set(['food', 'animal']), 
+                         set([o.concept_name for o in [m.object for m in matches]]))
+
+    def test_relationship__select_by_names__no_subject_or_object(self):
+        """Verify select_by_names method with neither subject_name or object_name provided.
+        """
+        self._setup_relationships()
+        matches = Relationship.select_by_names(relationship_type_name='is')
+        self.assertEqual(3, len(matches))
+        self.assertEqual(set(['fish', 'frog']),
+                         set([s.concept_name for s in [m.subject for m in matches]]))
+        self.assertEqual(set(['food', 'animal']), 
+                         set([o.concept_name for o in [m.object for m in matches]]))
 
     def test_relationship__subject_relation(self):
         """Verify subject relation on Relationship.

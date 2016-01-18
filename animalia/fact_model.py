@@ -114,27 +114,36 @@ class Relationship(db.Model):
         return db.session.query(cls).filter(filter_clause).first()
 
     @classmethod
-    def select_by_names(cls, subject_name=None, object_name=None, relationship_type_name=None):
-        """Select Relationship with specified subject, object and relationship type.
+    def select_by_names(cls, relationship_type_name=None, subject_name=None, object_name=None):
+        """Select Relationships with specified relationship_type, subject, and object.
 
-        :rtype: py:class:`~fact_model.Relationship`
-        :return: matching relationship; None if not found
+        :rtype: [py:class:`~fact_model.Relationship`]
+        :return: matching relationships; empty list if none are found
+
+        :type relationship_type_name: unicode
+        :arg relationship_type_name: name of relationship_type
 
         :type subject_name: unicode
+        :arg subject_name: optional name of subject concept
+
         :type object_name: unicode
-        :type relationship_type_name: unicode
+        :arg object_name: optional name of object concept
 
         """
-        subject_concept = sa_orm.aliased(Concept)
-        object_concept = sa_orm.aliased(Concept)
-        return db.session.query(cls).\
+        query = db.session.query(cls).\
             join(RelationshipType).\
-            join(subject_concept, Relationship.subject_id==subject_concept.concept_id).\
-            join(object_concept, Relationship.object_id==object_concept.concept_id).\
-            filter(RelationshipType.relationship_type_name==relationship_type_name).\
-            filter(subject_concept.concept_name==subject_name).\
-            filter(object_concept.concept_name==object_name).\
-            first()
+            filter(RelationshipType.relationship_type_name==relationship_type_name)
+        if subject_name: 
+            subject_concept = sa_orm.aliased(Concept)
+            query = query.\
+                join(subject_concept, Relationship.subject_id==subject_concept.concept_id).\
+                filter(subject_concept.concept_name==subject_name)
+        if object_name:
+            object_concept = sa_orm.aliased(Concept)
+            query = query.\
+                join(object_concept, Relationship.object_id==object_concept.concept_id).\
+                filter(object_concept.concept_name==object_name)
+        return query.all()
 
 Relationship.subject = sa_orm.relationship(
     Concept, primaryjoin=Concept.concept_id==Relationship.subject_id, lazy=False)
