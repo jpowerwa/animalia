@@ -116,6 +116,9 @@ class FactManager(object):
                 if not parsed_sentence.is_fact():
                     raise ValueError("Sentence has non-fact intent '{0}'".format(
                             parsed_sentence.intent))
+                if parsed_sentence.relationship_negation:
+                    raise ValueError("Cannot handle fact with negated relationship".format(
+                            parsed_sentence.intent))
             except ValueError as ex:
                 raise InvalidFactDataError("Invalid fact: {0}; wit_response={1}".format(
                         ex, wit_response))
@@ -429,11 +432,12 @@ class ParsedSentence(object):
     # Names of entities that are related to relationships or are subjects
     RELATIONSHIP_KEY = 'relationship'
     RELATIONSHIP_COUNT_KEY = 'number'
+    RELATIONSHIP_NEGATION_KEY = 'negation'
     SUBJECT_ENTITY_TYPES = Config.parsed_data_subject_entity_types
 
     def __init__(self, text=None, confidence=None, intent=None, 
                  subject_name=None, subject_type=None, object_name=None, object_type=None,
-                 relationship_name=None, relationship_number=None):
+                 relationship_name=None, relationship_number=None, relationship_negation=False):
         """
         :type text: unicode
         :type confidence: float
@@ -444,6 +448,7 @@ class ParsedSentence(object):
         :type object_type: unicode
         :type relationship_name: unicode
         :type relationship_number: int
+        :type relationship_negation: bool
         
         """
         self.text = text
@@ -455,6 +460,7 @@ class ParsedSentence(object):
         self.object_type = object_type
         self.relationship_name = relationship_name
         self.relationship_number = relationship_number or None
+        self.relationship_negation = relationship_negation
         self.orig_response = None
 
     @classmethod
@@ -520,6 +526,17 @@ class ParsedSentence(object):
                             len(vals)))
                 if vals:
                     instance.relationship_number = vals[0]
+
+            elif entity_type == cls.RELATIONSHIP_NEGATION_KEY:
+                if len(vals) > 1:
+                    raise ValueError("Expected at most 1 negation entity; found {0}".format(
+                            len(vals)))
+                if vals:
+                    if vals[0] == 'not':
+                        instance.relationship_negation = True
+                    else:
+                        raise ValueError("Unexpected value of negation entity: '{0}'".format(
+                                vals[0]))
 
             elif entity_type in cls.SUBJECT_ENTITY_TYPES:
                 if instance.subject_type:

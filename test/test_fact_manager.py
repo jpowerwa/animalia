@@ -50,7 +50,10 @@ class FactManagerTests(unittest.TestCase):
         select_fact.return_value = None
         test_data = copy.deepcopy(wit_responses.animal_species_fact_data)
         query_wit.return_value = json.dumps(test_data)
-        parse_response.return_value = mock_parsed_sentence = Mock(name='parsed_sentence')
+        mock_parsed_sentence = Mock(name='parsed_sentence',
+                                    is_fact=Mock(return_value=True),
+                                    relationship_negation=False)
+        parse_response.return_value = mock_parsed_sentence
         save_fact.return_value = saved_fact = Mock(name='saved_fact')
 
         # Make call
@@ -108,7 +111,8 @@ class FactManagerTests(unittest.TestCase):
         query_wit.return_value = json.dumps(test_data)
         mock_parsed_sentence = Mock(name='parsed_sentence', 
                                     intent='horse farm',
-                                    is_fact=Mock(return_value=False))
+                                    is_fact=Mock(return_value=False),
+                                    relationship_negation=False)
         from_response.return_value = mock_parsed_sentence
 
         self.assertRaisesRegexp(InvalidFactDataError,
@@ -116,6 +120,29 @@ class FactManagerTests(unittest.TestCase):
                                 FactManager.fact_from_sentence,
                                 mock_sentence)
            
+    @patch.object(ParsedSentence, 'from_wit_response')
+    @patch.object(FactManager, '_query_wit')
+    @patch.object(fact_model.IncomingFact, 'select_by_text')
+    @patch.object(FactManager, '_normalize_sentence')
+    def test_fact_from_sentence__negated_relationship(self, normalize_sentence, select_fact, 
+                                                      query_wit, from_response):
+        # Set up mocks and test data
+        mock_sentence = Mock(name='sentence')
+        normalize_sentence.return_value = mock_normalized_sentence = Mock(name='norm_sentence')
+        select_fact.return_value = None
+        test_data = copy.deepcopy(wit_responses.animal_species_fact_data)
+        query_wit.return_value = json.dumps(test_data)
+        mock_parsed_sentence = Mock(name='parsed_sentence', 
+                                    intent='horse farm',
+                                    is_fact=Mock(return_value=True),
+                                    relationship_negation=True)
+        from_response.return_value = mock_parsed_sentence
+
+        self.assertRaisesRegexp(InvalidFactDataError,
+                                "Invalid fact: Cannot handle fact with negated relationship",
+                                FactManager.fact_from_sentence,
+                                mock_sentence)
+
     @patch.object(FactManager, '_normalize_sentence')
     def test_fact_from_sentence__no_sentence(self, normalize_sentence):
         """Verify SentenceParseError if no sentence is provided.
@@ -526,6 +553,7 @@ class ParsedSentenceTests(unittest.TestCase):
         self.assertEqual('species', parsed_sentence.object_type)
         self.assertEqual('is a', parsed_sentence.relationship_name)
         self.assertIsNone(parsed_sentence.relationship_number)
+        self.assertFalse(parsed_sentence.relationship_negation)
         self.assertEqual(json.dumps(self.parsed_data), parsed_sentence.orig_response)
 
     def test_from_wit_response__number_entity(self):
@@ -542,6 +570,23 @@ class ParsedSentenceTests(unittest.TestCase):
         self.assertEqual('body_part', parsed_sentence.object_type)
         self.assertEqual('has', parsed_sentence.relationship_name)
         self.assertEqual(4, parsed_sentence.relationship_number)
+        self.assertFalse(parsed_sentence.relationship_negation)
+        self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
+
+    def test_from_wit_response__relationship_negation(self):
+        """Verify that 'negation' entity is detected.
+        """
+        test_data = copy.deepcopy(wit_responses.which_animal_question__negated)
+        parsed_sentence = ParsedSentence.from_wit_response(test_data)
+        self.assertEqual('which animals do not eat fish', parsed_sentence.text)
+        self.assertEqual(0.998, parsed_sentence.confidence)
+        self.assertEqual('which_animal_question', parsed_sentence.intent)
+        self.assertEqual('animals', parsed_sentence.subject_name)
+        self.assertEqual('animal', parsed_sentence.subject_type)
+        self.assertEqual('fish', parsed_sentence.object_name)
+        self.assertEqual('food', parsed_sentence.object_type)
+        self.assertEqual('eat', parsed_sentence.relationship_name)
+        self.assertTrue(parsed_sentence.relationship_negation)
         self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
 
     def test_from_wit_response__no_text_attr(self):
@@ -651,6 +696,16 @@ class ParsedSentenceTests(unittest.TestCase):
                                 'No object entity found',
                                 ParsedSentence.from_wit_response,
                                 self.parsed_data)
+
+    def test_from_wit_response__invalid_relationship_negation(self):
+        """Verify that unknown negation value fails.
+        """
+        test_data = copy.deepcopy(wit_responses.which_animal_question__negated)
+        test_data['outcomes'][0]['entities']['negation'][0]['value'] = 'never'
+        self.assertRaisesRegexp(ValueError,
+                                "Unexpected value of negation entity: 'never'",
+                                ParsedSentence.from_wit_response,
+                                test_data)
 
     def test_filter_entity_values(self):
         """Verify behavior of filter_entity_values.

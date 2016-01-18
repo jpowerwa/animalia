@@ -65,4 +65,30 @@ animal_species_fact_with_suggestion_data = {
             }]
     }
 
-
+which_animal_question__negated = {
+    "_text": "which animals do not eat fish",
+    "msg_id": "47ee7020-f1f4-4857-9233-dc33c16e75a4",
+    "outcomes": [{
+            "_text": "which animals do not eat fish",
+            "confidence": 0.998,
+            "entities": {
+                "animal": [{
+                        "type": "value",
+                        "value": "animals"
+                        }],
+                "food": [{
+                        "type": "value",
+                        "value": "fish"
+                        }],
+                "negation": [{
+                        "type": "value",
+                        "value": "not"
+                        }],
+                "relationship": [{
+                        "type": "value",
+                        "value": "eat"
+                        }]
+                },
+            "intent": "which_animal_question"
+            }]
+    }
