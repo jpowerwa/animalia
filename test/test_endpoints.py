@@ -11,6 +11,7 @@ import uuid
 
 from flask.ext.api import status
 import json
+import logging
 import mock
 
 from animalia import app
@@ -177,10 +178,13 @@ class FactManagerTests(unittest.TestCase):
         """
         # Set up mocks and test data
         fact_id = uuid.uuid4()
-        make_fact.side_effect = IncomingDataError('boo hoo')
+        make_fact.side_effect = ex = IncomingDataError('boo hoo')
 
         # Make call
-        response = self.post_fact('unparseable fact')
+        logger = logging.getLogger('animalia')
+        with mock.patch.object(logger, 'exception') as log_ex:
+            response = self.post_fact('unparseable fact')
+        log_ex.assert_called_once_with(ex)
 
         # Verify response status and data
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
@@ -224,8 +228,8 @@ class FactManagerTests(unittest.TestCase):
         self.assertEqual(json.dumps({'message': "I can't answer your question."}),
                          response.data)
 
-    def test_query_facts__invalid_question(self):
-        """Verify invalid fact_question scenario.
+    def test_query_facts__empty_question(self):
+        """Verify empty query_sentence scenario.
         """
         # Make call
         response = self.query_facts('')
@@ -233,6 +237,26 @@ class FactManagerTests(unittest.TestCase):
         # Verify response status and data
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
         self.assertEqual(json.dumps({'message': 'No question specified'}),
+                         response.data)
+
+    @mock.patch.object(FactManager, 'query_facts')
+    def test_query_facts__invalid_question(self, query_facts):
+        """Verify invalid query_sentence scenario.
+        """
+        # Set up mocks and test data
+        question = "who's your best friend"
+        query_facts.side_effect = ex = IncomingDataError('boo hoo')
+
+        # Make call
+        logger = logging.getLogger('animalia')
+        with mock.patch.object(logger, 'exception') as log_ex:
+            response = self.query_facts(question)
+        log_ex.assert_called_once_with(ex)
+        
+        # Verify response status and data
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertEqual(json.dumps({'message': 'Failed to parse your question',
+                                     'details': 'boo hoo'}),
                          response.data)
 
 

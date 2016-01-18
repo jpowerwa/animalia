@@ -142,6 +142,7 @@ class FactManager(object):
 
         :rtype: unicode 
         :return: string that answers provided question; None if there is no known answer
+        :raise: InvalidQueryDataError if provided sentence is invalid or cannot be parsed
 
         :type query_sentence: unicode
         :arg query_sentence: query sentence in format understandable by configured wit.ai instance
