@@ -157,7 +157,10 @@ class FactManager(object):
         wit_response = cls._query_wit(query_sentence)
         # TODO: Handle wit parse error
         try:
-            parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
+            # Relationship is optional for certain query intents, 
+            # i.e. animal_eat_query and animal_place_query
+            parsed_sentence = ParsedSentence.from_wit_response(
+                json.loads(wit_response), relationship_optional=True)
         except ValueError as ex:
             raise InvalidQueryDataError("Invalid query: {0}; wit_response={1}".format(
                     ex, wit_response))
@@ -464,7 +467,7 @@ class ParsedSentence(object):
         self.orig_response = None
 
     @classmethod
-    def from_wit_response(cls, response_data):
+    def from_wit_response(cls, response_data, relationship_optional=False):
         """Factory method that extracts subject, object and relationship and data from wit response.
 
         Verify:
@@ -472,9 +475,9 @@ class ParsedSentence(object):
         * Presence of exactly one outcome
         * Outcome 'intent' is defined
         * Confidence rating meets threshold
-        * Outcome has exactly one relationship entity
         * Outcome has exactly one subject entity
-        * Outcome has exactly one object
+        * Outcome has exactly one relationship entity or zero if relationship_optional is True
+        * Outcome has exactly one object entity or zero if relationship_optional is True
 
         :rtype: :py:class:`ParsedSentence`
         :return: instance of ParsedSentence
@@ -482,6 +485,9 @@ class ParsedSentence(object):
 
         :type response_data: dict
         :arg response_data: JSON response from wit.ai
+
+        :type relationship_optional: bool
+        :arg relationship_optional: True if missing relationship and object are not error
 
         """
         instance = cls()
@@ -567,10 +573,11 @@ class ParsedSentence(object):
 
         if not instance.subject_type:
             raise ValueError("No subject entity found")
-        if not instance.object_type:
-            raise ValueError("No object entity found")
-        if not instance.relationship_name:
-            raise ValueError("No relationship entity found")
+        if not relationship_optional:
+            if not instance.relationship_name:
+                raise ValueError("No relationship entity found")
+            if not instance.object_type: 
+                raise ValueError("No object entity found")
 
         # Serialize and preserve original response data
         instance.orig_response = json.dumps(response_data)

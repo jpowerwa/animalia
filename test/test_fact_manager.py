@@ -646,15 +646,13 @@ class ParsedSentenceTests(unittest.TestCase):
                                 ParsedSentence.from_wit_response,
                                 self.parsed_data)
 
-    def test_from_wit_response__zero_relationship_entities(self):
-        """Verify that outcome with zero relationship entities fails.
+    def test_from_wit_response__no_relationship__okay(self):
+        """Verify that outcome with no relationship entity fails if relationship_optional is True.
         """
         del self.parsed_data['outcomes'][0]['entities']['relationship']
-        self.assertRaisesRegexp(ValueError,
-                                'No relationship entity found',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
+        parsed_sentence = ParsedSentence.from_wit_response(
+            self.parsed_data, relationship_optional=True)
+                                
     def test_from_wit_response__multiple_subject_entities(self):
         """Verify that outcome with multiple subject entities fails.
         """
@@ -698,6 +696,13 @@ class ParsedSentenceTests(unittest.TestCase):
                                 'No object entity found',
                                 ParsedSentence.from_wit_response,
                                 self.parsed_data)
+
+    def test_from_wit_response__zero_object_entities__relationship_optional(self):
+        """Verify that outcome with no entities is okay if relationship_optional is True.
+        """
+        del self.parsed_data['outcomes'][0]['entities']['species']
+        parsed_sentence = ParsedSentence.from_wit_response(
+            self.parsed_data, relationship_optional=True)
 
     def test_from_wit_response__invalid_relationship_negation(self):
         """Verify that unknown negation value fails.
