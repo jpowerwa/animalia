@@ -337,7 +337,7 @@ class RelationshipTests(FactModelTestCase):
                                                object_name='animal')
         self.assertEqual(1, len(matches))
         rel = matches[0]
-        self.assertTrue('is' in rel.relationship_names)
+        self.assertTrue('is' in rel.relationship_type_names)
         self.assertEqual('fish', rel.subject.concept_name)
         self.assertEqual('animal', rel.object.concept_name)
 
@@ -423,7 +423,7 @@ class RelationshipTests(FactModelTestCase):
         self.assertIsNotNone(retrieved_concept, "Expected to find persisted Concept")
 
     def test_relationship__relationship_types(self):
-        """Verify relationship_types relation and relationship_names association proxy.
+        """Verify relationship_types relation and relationship_type_names association proxy.
         """
         rel_id = uuid.uuid4()
         rel_type = RelationshipType(relationship_type_id=uuid.uuid4(),
@@ -445,7 +445,7 @@ class RelationshipTests(FactModelTestCase):
         self.assertEqual(rel_type.relationship_type_name,
                          retrieved_rel.relationship_types[0].relationship_type_name)
         self.assertEqual(rel_type.relationship_type_name, 
-                         retrieved_rel.relationship_names[0])
+                         retrieved_rel.relationship_type_names[0])
         self.reset_session()
 
         # Verify RelationshipType was persisted as well
@@ -454,7 +454,7 @@ class RelationshipTests(FactModelTestCase):
         self.assertIsNotNone(retrieved_rel_type, "Expected to find persisted RelationshipType")
 
     def test_relationship__relationship_types__multiple(self):
-        """Verify relationship_types and relationship_names with multiple matches.
+        """Verify relationship_types and relationship_type_names with multiple matches.
         """
         rel_id = uuid.uuid4()
         rel_type_id = uuid.uuid4()
@@ -482,7 +482,7 @@ class RelationshipTests(FactModelTestCase):
         # Verify Relationship
         retrieved_rel = db.session.query(Relationship).filter_by(relationship_id=rel_id).first()
         self.assertEqual(len(retrieved_rel.relationship_types), len(rel_type_names))
-        self.assertEqual(set(rel_type_names), set(retrieved_rel.relationship_names))
+        self.assertEqual(set(rel_type_names), set(retrieved_rel.relationship_type_names))
 
     def test_relationship__relationship_types__new_relationship_and_type(self):
         """Verify that new Relationship and RelationshipType does not delete existing match.
@@ -519,7 +519,7 @@ class RelationshipTests(FactModelTestCase):
         # Verify Relationship has both names
         retrieved_rel = db.session.query(Relationship).filter_by(relationship_id=rel_id).first()
         self.assertEqual(len(retrieved_rel.relationship_types), len(rel_type_names))
-        self.assertEqual(set(rel_type_names), set(retrieved_rel.relationship_names))
+        self.assertEqual(set(rel_type_names), set(retrieved_rel.relationship_type_names))
 
     def test_delete_relationship(self):
         """Verify that deleting Relationship leaves Concepts and RelationshipType intact.

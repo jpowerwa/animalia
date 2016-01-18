@@ -150,7 +150,7 @@ Relationship.subject = sa_orm.relationship(
 Relationship.object = sa_orm.relationship(
     Concept, primaryjoin=Concept.concept_id==Relationship.object_id, lazy=False)
 Relationship.relationship_types = sa_orm.relationship(RelationshipType, uselist=True, lazy=False) 
-Relationship.relationship_names = sa_assoc_proxy.association_proxy(
+Relationship.relationship_type_names = sa_assoc_proxy.association_proxy(
     'relationship_types', 'relationship_type_name')
 
 Concept.concept_types = sa_orm.relationship(
