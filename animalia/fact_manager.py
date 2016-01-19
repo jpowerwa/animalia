@@ -15,6 +15,7 @@ import wit
 
 from config import Config
 import fact_model
+import fact_query
 
 logger = logging.getLogger('animalia.FactManager')
 
@@ -113,12 +114,7 @@ class FactManager(object):
             # TODO: Handle wit parse error
             try:
                 parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
-                if not parsed_sentence.is_fact():
-                    raise ValueError("Sentence has non-fact intent '{0}'".format(
-                            parsed_sentence.intent))
-                if parsed_sentence.relationship_negation:
-                    raise ValueError("Cannot handle fact with negated relationship".format(
-                            parsed_sentence.intent))
+                parsed_sentence.validate_fact()
             except ValueError as ex:
                 raise InvalidFactDataError("Invalid fact: {0}; wit_response={1}".format(
                         ex, wit_response))
@@ -154,6 +150,7 @@ class FactManager(object):
         query_sentence = cls._normalize_sentence(query_sentence)
         if not query_sentence:
             raise InvalidQueryDataError("Empty query sentence provided")
+        query_sentence += '?'
         wit_response = cls._query_wit(query_sentence)
         # TODO: Handle wit parse error
         try:
@@ -164,7 +161,7 @@ class FactManager(object):
         except ValueError as ex:
             raise InvalidQueryDataError("Invalid query: {0}; wit_response={1}".format(
                     ex, wit_response))
-        return cls._retrieve_query_answer(parsed_sentence)
+        return fact_query.FactQuery.find_answer(parsed_sentence)
 
 
     # private methods
@@ -329,6 +326,8 @@ class FactManager(object):
     @classmethod
     def _normalize_sentence(cls, sentence):
         """Normalize provided sentence for comparison, parsing and persistence.
+        
+        Transform to lowercase and remove non-alphanumeric characters.
 
         :rtype: unicode
         :return: normalized sentence
@@ -357,18 +356,6 @@ class FactManager(object):
             wit.init()   
             cls._wit_initialized = True
         return wit.text_query(sentence, Config.wit_access_token)
-
-    @classmethod
-    def _retrieve_query_answer(cls, parsed_sentence):
-        """
-        :rtype: unicode
-        :return: answer to question or None if no answer could be found
-
-        :type parsed_sentence: :py:class:`ParsedSentence`
-        :arg parsed_sentence: object containing parsed query components
-
-        """
-        pass
 
     @classmethod
     def _save_parsed_fact(cls, parsed_sentence):
@@ -468,7 +455,7 @@ class ParsedSentence(object):
         self.orig_response = None
 
     @classmethod
-    def from_wit_response(cls, response_data, relationship_optional=False):
+    def from_wit_response(cls, response_data):
         """Factory method that extracts subject, object and relationship and data from wit response.
 
         Verify:
@@ -476,9 +463,6 @@ class ParsedSentence(object):
         * Presence of exactly one outcome
         * Outcome 'intent' is defined
         * Confidence rating meets threshold
-        * Outcome has exactly one subject entity
-        * Outcome has exactly one relationship entity or zero if relationship_optional is True
-        * Outcome has exactly one object entity or zero if relationship_optional is True
 
         :rtype: :py:class:`ParsedSentence`
         :return: instance of ParsedSentence
@@ -486,9 +470,6 @@ class ParsedSentence(object):
 
         :type response_data: dict
         :arg response_data: JSON response from wit.ai
-
-        :type relationship_optional: bool
-        :arg relationship_optional: True if missing relationship and object are not error
 
         """
         instance = cls()
@@ -515,7 +496,7 @@ class ParsedSentence(object):
             raise ValueError("Outcome confidence falls below threshold: {0} < {1}".format(
                     instance.confidence, cls.CONFIDENCE_THRESHOLD))
 
-        # Expect at least 3 entities overall: relationship, subject and object
+        # Identify relationship, subject and object entities
         for entity_type, entity_data in outcome['entities'].iteritems(): 
             vals, suggested_vals = cls._filter_entity_values(entity_data)
             if entity_type == cls.RELATIONSHIP_KEY:
@@ -539,7 +520,7 @@ class ParsedSentence(object):
                     raise ValueError("Expected at most 1 negation entity; found {0}".format(
                             len(vals)))
                 if vals:
-                    if vals[0] == 'not':
+                    if vals[0] in ('not', 'no'):
                         instance.relationship_negation = True
                     else:
                         raise ValueError("Unexpected value of negation entity: '{0}'".format(
@@ -572,27 +553,34 @@ class ParsedSentence(object):
                             instance.object_type, vals, vals[0]))
                 instance.object_name = vals[0]
 
-        if not instance.subject_type:
-            raise ValueError("No subject entity found")
-        if not relationship_optional:
-            if not instance.relationship_type_name:
-                raise ValueError("No relationship entity found")
-            if not instance.object_type: 
-                raise ValueError("No object entity found")
-
         # Serialize and preserve original response data
         instance.orig_response = json.dumps(response_data)
 
         return instance
 
-    def is_fact(self):
-        """Determine if this sentence data represents fact or query.
+    def validate_fact(self):
+        """Determine if this sentence data represents valid fact.
 
-        :rtype: bool
-        :return: True if this sentence is for a fact
+        :raise: ValueError if sentence does not meet requirements for a valid fact
+
+        Verify:
+        * Intent is fact
+        * Sentence has exactly one subject entity
+        * Sentence has exactly one relationship entity 
+        * Sentence has exactly one object entity
+        * Relationship is not negated
 
         """
-        return self.intent.endswith('fact')
+        if not parsed_sentence.is_fact():
+            raise ValueError("Sentence has non-fact intent '{0}'".format(self.intent))
+        if parsed_sentence.relationship_negation:
+            raise ValueError("Cannot handle fact with negated relationship")
+        if not instance.relationship_type_name:
+            raise ValueError("No relationship entity found")
+        if not self.subject_type:
+            raise ValueError("No subject entity found")
+        if not instance.object_type: 
+            raise ValueError("No object entity found")
 
 
     # private methods
@@ -610,8 +598,9 @@ class ParsedSentence(object):
         """
         vals = []
         suggested_vals = []
-        for entity in [e for e in entity_data or [] if e.get('type') == 'value']:
+        for entity in [e.lower() for e in entity_data or [] if e.get('type') == 'value']:
             target_list = suggested_vals if entity.get('suggested') else vals
             target_list.append(entity['value'])
         return vals, suggested_vals
+
 
