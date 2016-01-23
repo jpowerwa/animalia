@@ -73,6 +73,187 @@ class FactQueryTests(unittest.TestCase):
                                 'No query to answer',
                                 fact_query.find_answer)
 
+    def test_find_answer_function(self):
+        """Verify logic of find_answer_function for query intent.
+        """
+        mock_parsed_query = Mock(name='parsed_query',
+                                 intent='animal_eat_query')
+        fact_query = FactQuery(parsed_query=mock_parsed_query)
+        fn = fact_query._find_answer_function()
+        self.assertEqual(fn, fact_query._animal_eat_query)
+
+    def test_find_answer_function__ci(self):
+        """Verify logic of find_answer_function for query intent that is capitalized.
+        """
+        mock_parsed_query = Mock(name='parsed_query',
+                                 intent='ANIMAL_EAT_QUERY')
+        fact_query = FactQuery(parsed_query=mock_parsed_query)
+        fn = fact_query._find_answer_function()
+        self.assertEqual(fn, fact_query._animal_eat_query)
+
+    def test_find_answer_function__question(self):
+        """Verify logic of find_answer_function for question intent.
+        """
+        mock_parsed_query = Mock(name='parsed_query',
+                                 intent='animal_eat_question')
+        fact_query = FactQuery(parsed_query=mock_parsed_query)
+        fn = fact_query._find_answer_function()
+        self.assertEqual(fn, fact_query._animal_eat_query)
+
+    def test_find_answer_function__does_not_exit(self):
+        """Verify logic of find_answer_function for unrecognized intent.
+        """
+        mock_parsed_query = Mock(name='parsed_query',
+                                 intent='foo_bar_query')
+        fact_query = FactQuery(parsed_query=mock_parsed_query)
+        fn = fact_query._find_answer_function()
+        self.assertIsNone(fn)
+
+    def test_find_answer_function__fact(self):
+        """Verify logic of find_answer_function for fact intent.
+        """
+        mock_parsed_query = Mock(name='parsed_query',
+                                 intent='animal_eat_fact')
+        fact_query = FactQuery(parsed_query=mock_parsed_query)
+        fn = fact_query._find_answer_function()
+        self.assertEqual(fn, fact_query._animal_attribute_query)
+
+    def test_get_synonymous_species_names(self):
+        """Verify logic of get_synonymous_species_name with singular name.
+        """
+        names = FactQuery()._get_synonymous_species_names('mammal')
+        self.assertEqual(['mammal', 'mammals'], names)
+
+    def test_get_synonymous_species_names__plural(self):
+        """Verify logic of get_synonymous_species_names with plural name.
+        """
+        names = FactQuery()._get_synonymous_species_names('mammals')
+        self.assertEqual(['mammal', 'mammals'], names)
+
+    def test_query_object_is_species(self):
+        """Verify logic of query_object_is_species.
+        """
+        parsed_query = Mock(name='parsed_query', object_type='species')
+        fact_query = FactQuery(parsed_query=parsed_query)
+        self.assertTrue(fact_query._query_object_is_species())
+
+    def test_query_object_is_species__false(self):
+        """Verify logic of query_object_is_species when object is not species.
+        """
+        parsed_query = Mock(name='parsed_query', object_type='place')
+        fact_query = FactQuery(parsed_query=parsed_query)
+        self.assertFalse(fact_query._query_object_is_species())
+
+    @patch.object(FactQuery, '_select_matching_relationships')
+    def test_query_subject_is_species(self, select_relationships):
+        """Verify logic of query_subject_is_species.
+        """
+        # Set up mocks and test data
+        select_relationships.side_effect = [[], [Mock(name='match')]]
+        parsed_query = Mock(name='parsed_query', subject_name='mammal')
+        fact_query = FactQuery(parsed_query=parsed_query)
+        
+        # Verify result
+        self.assertTrue(fact_query._query_subject_is_species())
+        
+        # Verify mocks
+        call_args_list = select_relationships.call_args_list
+        self.assertEqual(2, len(call_args_list))
+        self.assertEqual('is', call_args_list[0][0][0])
+        self.assertEqual({'subject_name': 'mammal', 'object_name': 'species'}, 
+                         call_args_list[0][1])
+        self.assertEqual('is', call_args_list[1][0][0])
+        self.assertEqual({'subject_name': 'mammals', 'object_name': 'species'}, 
+                         call_args_list[1][1])
+        
+    @patch.object(FactQuery, '_select_matching_relationships')
+    def test_query_subject_is_species__false(self, select_relationships):
+        """Verify logic of query_subject_is_species when no matching relationship is found.
+        """
+        # Set up mocks and test data
+        select_relationships.side_effect = [[], []]
+        parsed_query = Mock(name='parsed_query', subject_name='mammal')
+        fact_query = FactQuery(parsed_query=parsed_query)
+        
+        # Verify result
+        self.assertFalse(fact_query._query_subject_is_species())
+        
+        # Verify mocks
+        self.assertEqual(2, len(select_relationships.call_args_list))
+
+    @patch.object(FactQuery, '_select_matching_relationships')
+    def test_select_all_animals(self, select_relationships):
+        """Verify calls made by _select_all_animals.
+        """
+        # Set up mocks and test data
+        select_relationships.return_value = mock_matches = Mock(name='matches')
+        fact_query = FactQuery()
+        
+        # Make call
+        matches = fact_query._select_all_animals()
+        
+        # Verify result
+        self.assertEqual(mock_matches, matches)
+
+        # Verify mocks
+        select_relationships.assert_called_once_with('is', object_name='animal')
+
+    @patch.object(fact_model.Relationship, 'select_by_names')
+    def test_select_matching_relationships(self, select_by_names):
+        """Verify calls made by _select_matching_relationships.
+        """
+        # Set up mocks and test data
+        select_by_names.return_value = mock_matches = Mock(name='matches')
+        test_relationship_type_name = 'eats'
+        test_subject_name = 'otter'
+        test_object_name = 'mussels'
+        fact_query = FactQuery()
+        
+        # Make call
+        matches = fact_query._select_matching_relationships(test_relationship_type_name,
+                                                            subject_name=test_subject_name,
+                                                            object_name=test_object_name)
+        
+        # Verify result
+        self.assertEqual(mock_matches, matches)
+
+        # Verify mocks
+        select_by_names.assert_called_once_with(relationship_type_name=test_relationship_type_name,
+                                                subject_name=test_subject_name,
+                                                object_name=test_object_name)
+
+    @patch.object(fact_model.Relationship, 'select_by_names')
+    def test_select_matching_relationships__with_relationship_number(self, select_by_names):
+        """Verify calls made by _select_matching_relationships with relationship_number.
+        """
+        # Set up mocks and test data
+        m1 = Mock(name='mock_match_1', count=None)
+        m2 = Mock(name='mock_match_2', count=3)
+        m3 = Mock(name='mock_match_3', count=1)
+        m4 = Mock(name='mock_match_2', count=3)
+        select_by_names.return_value = mock_matches = [m1, m2, m3, m4]
+        test_relationship_type_name = 'eats'
+        test_subject_name = 'otter'
+        test_object_name = 'mussels'
+        test_relationship_number = 3
+        fact_query = FactQuery()
+        
+        # Make call
+        matches = fact_query._select_matching_relationships(
+            test_relationship_type_name,
+            subject_name=test_subject_name,
+            object_name=test_object_name,
+            relationship_number=test_relationship_number)
+        
+        # Verify result
+        self.assertEqual([m2, m4], matches)
+
+        # Verify mocks
+        select_by_names.assert_called_once_with(relationship_type_name=test_relationship_type_name,
+                                                subject_name=test_subject_name,
+                                                object_name=test_object_name)
+
+
 class SpeciesFilterTests(unittest.TestCase):
     """Verify methods having to do with filtering subjects and objects by species.
     """
