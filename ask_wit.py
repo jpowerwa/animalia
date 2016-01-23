@@ -19,7 +19,7 @@ import sys
 import wit
 
 # local 
-from config import Config
+from animalia.config import Config
 
 
 def parse_args():
