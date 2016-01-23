@@ -19,12 +19,8 @@ app = flask.Flask(__name__)
 # Init logging
 import logging
 
-ch = logging.StreamHandler()
-ch.setFormatter(logging.Formatter(fmt='%(asctime)s %(name)s [%(levelname)s] %(message)s',
-                                  datefmt='%Y-%m-%d %H:%M:%S'))
-logging.root.addHandler(ch)
-logger = logging.getLogger('animalia')
-logger.setLevel(logging.DEBUG)
+app.logger.setLevel(logging.DEBUG)
+logger = app.logger
 
 
 # Import after app has been created
