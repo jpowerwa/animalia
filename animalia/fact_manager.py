@@ -484,6 +484,8 @@ class ParsedSentence(object):
         if not instance.text:
             raise ValueError("Response data has no _text attribute")
 
+        logger.debug("Parsing wit response for sentence '{0}'".format(instance.text))
+
         # Expect exactly one outcome
         outcomes = response_data.get('outcomes') or []
         if len(outcomes) != 1:
