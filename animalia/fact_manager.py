@@ -105,6 +105,7 @@ class FactManager(object):
         :arg fact_sentence: fact sentence in format understandable by configured wit.ai instance
 
         """
+        logger.debug("Processing sentence '{0}'".format(fact_sentence))
         fact_sentence = cls._normalize_sentence(fact_sentence)
         if not fact_sentence:
             raise SentenceParseError("Empty fact sentence provided")
@@ -156,12 +157,12 @@ class FactManager(object):
         try:
             # Relationship is optional for certain query intents, 
             # i.e. animal_eat_query and animal_place_query
-            parsed_sentence = ParsedSentence.from_wit_response(
-                json.loads(wit_response), relationship_optional=True)
+            parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
         except ValueError as ex:
             raise InvalidQueryDataError("Invalid query: {0}; wit_response={1}".format(
                     ex, wit_response))
-        return fact_query.FactQuery.find_answer(parsed_sentence)
+        query = fact_query.FactQuery(parsed_query=parsed_sentence)
+        return query.find_answer()
 
 
     # private methods
@@ -197,6 +198,7 @@ class FactManager(object):
 
         :rtype: :py:class:`~fact_model.Concept`
         :return: existing or unpersisted, newly-created Concept for provided data 
+        :raise: :py:class:`ConflictingFactError` if data conflicts with existing fact
         
         :type concept_name: unicode
         :arg concept_name: name of concept, e.g. 'otter', 'fish'
@@ -213,8 +215,11 @@ class FactManager(object):
         # Ensure concept for type, e.g. 'animal'
         type_concept = cls._ensure_concept(concept_type)
 
-        # Verify no contradiction or loop
-        # TODO
+        # Verify no loop
+        if concept_name in [c.concept_name for c in type_concept.concept_types]:
+            raise ConflictingFactError(
+                ("Cannot add relationship '{0} is {1}' because '{1} is {0}'".format(
+                        concept_name, concept_type)))
 
         # Ensure 'is' relationship for subject and type, e.g. 'otter is animal'
         is_relationship = cls._ensure_relationship(subject_concept,
@@ -353,7 +358,7 @@ class FactManager(object):
         
         """
         if not cls._wit_initialized:
-            wit.init()   
+            wit.init()
             cls._wit_initialized = True
         return wit.text_query(sentence, Config.wit_access_token)
 
@@ -498,60 +503,36 @@ class ParsedSentence(object):
 
         # Identify relationship, subject and object entities
         for entity_type, entity_data in outcome['entities'].iteritems(): 
-            vals, suggested_vals = cls._filter_entity_values(entity_data)
+            val, is_suggested = cls._get_entity_value(entity_type, entity_data)
+            logger.debug("Parsed value '{0}' for entity '{1}'{2}".format(
+                    val, entity_type, ' (suggested)' if is_suggested else ''))
+            if val:
+                if is_suggested:
+                    logger.warn("Using suggested parsed value '{0}' for entity '{1}'".format(
+                            val, entity_type))
+
             if entity_type == cls.RELATIONSHIP_KEY:
-                if suggested_vals:
-                    logger.warn("Skipping suggested relationship names: {0}".format(
-                            suggested_vals))
-                if len(vals) > 1:
-                    logger.warn("Multiple relationship names: {0}; ignoring all but '{1}'".format(
-                            vals, vals[0]))
-                instance.relationship_type_name = vals[0]
+                instance.relationship_type_name = val
 
             elif entity_type == cls.RELATIONSHIP_COUNT_KEY:
-                if len(vals) > 1:
-                    raise ValueError("Expected at most 1 relationship number; found {0}".format(
-                            len(vals)))
-                if vals:
-                    instance.relationship_number = vals[0]
+                instance.relationship_number = val
 
             elif entity_type == cls.RELATIONSHIP_NEGATION_KEY:
-                if len(vals) > 1:
-                    raise ValueError("Expected at most 1 negation entity; found {0}".format(
-                            len(vals)))
-                if vals:
-                    if vals[0] in ('not', 'no'):
-                        instance.relationship_negation = True
-                    else:
-                        raise ValueError("Unexpected value of negation entity: '{0}'".format(
-                                vals[0]))
+                instance.relationship_negation = True
 
             elif entity_type in cls.SUBJECT_ENTITY_TYPES:
                 if instance.subject_type:
-                    raise ValueError("Found multiple subject entities: {0}, {1}".format(
+                    raise ValueError("Parsed multiple subject entities: {0}, {1}".format(
                             instance.subject_type, entity_type))
                 instance.subject_type = entity_type
-                if suggested_vals:
-                    logger.warn("Skipping suggested subjects for type {0}: {1}".format(
-                            instance.subject_type, suggested_vals))
-                if len(vals) > 1:
-                    logger.warn("Multiple subjects for type {0}: {1}; ignoring all but '{2}'".format(
-                            instance.subject_type, vals, vals[0]))
-                instance.subject_name = vals[0]
-
-            elif instance.object_type:
-                raise ValueError("Found multiple object entities: {0}, {1}".format(
-                        instance.object_type, entity_type))
+                instance.subject_name = val
 
             else:
+                if instance.object_type:
+                    raise ValueError("Parsed multiple object entities: {0}, {1}".format(
+                            instance.object_type, entity_type))
                 instance.object_type = entity_type
-                if suggested_vals:
-                    logger.warn("Skipping suggested objects for type {0}: {1}".format(
-                            instance.subject_type, suggested_vals))
-                if len(vals) > 1:
-                    logger.warn("Multiple objects for type {0}: {1}; ignoring all but {2}".format(
-                            instance.object_type, vals, vals[0]))
-                instance.object_name = vals[0]
+                instance.object_name = val
 
         # Serialize and preserve original response data
         instance.orig_response = json.dumps(response_data)
@@ -571,36 +552,73 @@ class ParsedSentence(object):
         * Relationship is not negated
 
         """
-        if not parsed_sentence.is_fact():
+        if not self.intent.endswith('_fact'):
             raise ValueError("Sentence has non-fact intent '{0}'".format(self.intent))
-        if parsed_sentence.relationship_negation:
+        if self.relationship_negation:
             raise ValueError("Cannot handle fact with negated relationship")
-        if not instance.relationship_type_name:
+        if not self.relationship_type_name:
             raise ValueError("No relationship entity found")
         if not self.subject_type:
             raise ValueError("No subject entity found")
-        if not instance.object_type: 
+        if not self.object_type: 
             raise ValueError("No object entity found")
 
 
     # private methods
 
     @classmethod
-    def _filter_entity_values(cls, entity_data):
-        """Return lists of strings that are values of 'value' entities.
+    def _get_entity_value(cls, entity_type, entity_data):
+        """Extract string that is 'value' of entity. Indicate if returned value is suggested.
 
-        :rtype: ([unicode, ...], [unicode, ...])
-        :return: tuple of lists; first is non-suggested values, second is suggested values
+        :rtype: (unicode, bool)
+        :return: tuple that is value of entity and is_suggested flag
 
         :type entity_data: list of dicts with keys 'type', 'value' and, optionally, 'suggested'
         :arg entity_data: value of 'entities' dict in wit.ai parsed fact
 
         """
+        val = None
+        is_suggested = False
+
         vals = []
         suggested_vals = []
-        for entity in [e.lower() for e in entity_data or [] if e.get('type') == 'value']:
+        for entity in [e for e in entity_data or [] if e.get('type') == 'value']:
             target_list = suggested_vals if entity.get('suggested') else vals
-            target_list.append(entity['value'])
-        return vals, suggested_vals
+            target_list.append(str(entity['value']).lower())
+
+        if not vals and suggested_vals:
+            logger.debug("Only suggested values found for entity '{0}': {1}".format(
+                    entity_type, suggested_vals))
+            vals = suggested_vals
+            is_suggested = True
+        elif suggested_vals:
+            logger.debug("Ignoring suggested values for entity '{0}': {1}".format(
+                    entity_type, suggested_vals))
+        if vals:
+            if len(vals) > 1:
+                logger.warn("Multiple values for entity '{0}': {1}; ignoring all but '{2}'".format(
+                        entity_type, vals, vals[0]))
+            val = vals[0]
+
+        return val, is_suggested
+
+
+    # @classmethod
+    # def _filter_entity_values(cls, entity_data):
+    #     """Return lists of strings that are values of 'value' entities.
+
+    #     :rtype: ([unicode, ...], [unicode, ...])
+    #     :return: tuple of lists; first is non-suggested values, second is suggested values
+
+    #     :type entity_data: list of dicts with keys 'type', 'value' and, optionally, 'suggested'
+    #     :arg entity_data: value of 'entities' dict in wit.ai parsed fact
+
+    #     """
+    #     vals = []
+    #     suggested_vals = []
+    #     for entity in [e for e in entity_data or [] if e.get('type') == 'value']:
+    #         target_list = suggested_vals if entity.get('suggested') else vals
+    #         target_list.append(str(entity['value']).lower())
+    #     return vals, suggested_vals
 
 

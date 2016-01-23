@@ -569,7 +569,7 @@ class ParsedSentenceTests(unittest.TestCase):
         self.assertEqual('legs', parsed_sentence.object_name)
         self.assertEqual('body_part', parsed_sentence.object_type)
         self.assertEqual('has', parsed_sentence.relationship_type_name)
-        self.assertEqual(4, parsed_sentence.relationship_number)
+        self.assertEqual('4', parsed_sentence.relationship_number)
         self.assertFalse(parsed_sentence.relationship_negation)
         self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
 
@@ -633,7 +633,7 @@ class ParsedSentenceTests(unittest.TestCase):
         """
         self.parsed_data['outcomes'][0]['confidence'] = ParsedSentence.CONFIDENCE_THRESHOLD - 0.1
         self.assertRaisesRegexp(ValueError,
-                                'Outcome confidence falls below threshold: 0.7 < 0.8',
+                                'Outcome confidence falls below threshold: 0.6 < 0.7',
                                 ParsedSentence.from_wit_response,
                                 self.parsed_data)
 
@@ -646,13 +646,6 @@ class ParsedSentenceTests(unittest.TestCase):
                                 ParsedSentence.from_wit_response,
                                 self.parsed_data)
 
-    def test_from_wit_response__no_relationship__okay(self):
-        """Verify that outcome with no relationship entity fails if relationship_optional is True.
-        """
-        del self.parsed_data['outcomes'][0]['entities']['relationship']
-        parsed_sentence = ParsedSentence.from_wit_response(
-            self.parsed_data, relationship_optional=True)
-                                
     def test_from_wit_response__multiple_subject_entities(self):
         """Verify that outcome with multiple subject entities fails.
         """
@@ -696,23 +689,6 @@ class ParsedSentenceTests(unittest.TestCase):
                                 'No object entity found',
                                 ParsedSentence.from_wit_response,
                                 self.parsed_data)
-
-    def test_from_wit_response__zero_object_entities__relationship_optional(self):
-        """Verify that outcome with no entities is okay if relationship_optional is True.
-        """
-        del self.parsed_data['outcomes'][0]['entities']['species']
-        parsed_sentence = ParsedSentence.from_wit_response(
-            self.parsed_data, relationship_optional=True)
-
-    def test_from_wit_response__invalid_relationship_negation(self):
-        """Verify that unknown negation value fails.
-        """
-        test_data = copy.deepcopy(wit_responses.which_animal_question__negated)
-        test_data['outcomes'][0]['entities']['negation'][0]['value'] = 'never'
-        self.assertRaisesRegexp(ValueError,
-                                "Unexpected value of negation entity: 'never'",
-                                ParsedSentence.from_wit_response,
-                                test_data)
 
     def test_filter_entity_values(self):
         """Verify behavior of filter_entity_values.
