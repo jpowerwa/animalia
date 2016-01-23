@@ -6,7 +6,12 @@
 
 from __future__ import unicode_literals
 
+import logging
+
 import fact_model
+
+logger = logging.getLogger('animalia.FactQuery')
+
 
 class FactQuery(object):
     """Encapsulation of logic to answer query based on facts database.
@@ -36,6 +41,12 @@ class FactQuery(object):
 
 
     # private methods
+
+    def _bool_as_str(self, val):
+        """Tranform provided boolean value into 'yes' or 'no'.
+
+        """
+        return 'yes' if val else 'no'
 
     def _filter_objects_by_species(self, matches):
         """If appropriate, filter relationships for those with objects of specified species.
@@ -94,7 +105,7 @@ class FactQuery(object):
         :return: appropriate function or None if no function is found
 
         """
-        intent = self.parsed_query.intent
+        intent = self.parsed_query.intent.lower()
 
         # Sometimes queries are labeled as facts. These appear to translate as 
         # 'animal_attribute_question'.
@@ -104,13 +115,13 @@ class FactQuery(object):
         # Normalize _question and _query intents.
         intent_base = '_'.join(intent.split('_')[0:-1])
         fn_name = '_{0}_query'.format(intent_base)
-        return getattr(self, fn_name)
+        return getattr(self, fn_name, None)
 
     def _get_synonymous_species_names(self, orig_name):
         """Generate variations of specified species name.
 
         :rtype: [unicode, ...]
-        :return: list of synonymous species names
+        :return: list of synonymous species names (sorted for test convenience)
 
         :type orig_name: unicode
         :arg orig_name: name of species, e.g. 'fish', 'mammals'
@@ -121,7 +132,7 @@ class FactQuery(object):
             species_names.append(orig_name[0:-1])
         else:
             species_names.append(orig_name + 's')
-        return species_names
+        return sorted(species_names)
 
     def _query_object_is_species(self):
         """Determine if current query is for all animals of a particular species or not.
@@ -173,12 +184,15 @@ class FactQuery(object):
         :arg object_name: optional name of object concept
 
         """
+        logger.debug("Searching for relationship for type {0}, subject {1} and object {2}".format(
+                relationship_type_name, subject_name, object_name))
         matches = fact_model.Relationship.select_by_names(
             relationship_type_name=relationship_type_name,
             subject_name=subject_name,
             object_name=object_name)
         if relationship_number is not None:
             matches = [m for m in matches if m.count == relationship_number]
+        logger.debug("Found {0} matches".format(len(matches) if matches else 0))
         return matches
 
 
@@ -196,8 +210,8 @@ class FactQuery(object):
           Do otters have four legs?
           Do otters have two legs?
 
-        :rtype: bool
-        :return: True if relationship exists, False otherwise
+        :rtype: unicode
+        :return: 'yes' if relationship exists, 'no' otherwise
 
         """
         matches = self._select_matching_relationships(
@@ -205,7 +219,7 @@ class FactQuery(object):
             subject_name=self.parsed_query.subject_name,
             object_name=self.parsed_query.object_name,
             relationship_number=self.parsed_query.relationship_number)
-        return len(matches) == 1
+        return self._bool_as_str(len(matches) == 1)
 
     def _animal_eat_query(self):
         """What does the subject eat?
@@ -224,7 +238,7 @@ class FactQuery(object):
             matches = self._select_matching_relationships(
                 'eat', subject_name=self.parsed_query.subject_name)
 
-        return [o.concept_name for o in [r.object for r in matches]].sort()
+        return sorted([o.concept_name for o in [r.object for r in matches]])
 
     def _animal_fur_query(self):
         """Does the subject have fur?
@@ -233,8 +247,8 @@ class FactQuery(object):
           Does the otter have fur?
           Do mammals have fur?
 
-        :rtype: bool
-        :return: True if subject has fur, False otherwise
+        :rtype: unicode
+        :return: 'yes' if relationship exists, 'no' otherwise
 
         """
         if self._query_subject_is_species():
@@ -245,7 +259,7 @@ class FactQuery(object):
                 'has', 
                 subject_name=self.parsed_query.subject_name, 
                 object_name='fur')
-        return len(matches) == 1
+        return self._bool_as_str(len(matches) == 1)
 
     def _animal_how_many_query(self):
         """Number of relationships or count attribute of specific relationship.
@@ -290,13 +304,14 @@ class FactQuery(object):
         :return: list of places where subject lives
 
         """
+        logger.debug("animal_place_query for subject '{0}'".format(self.parsed_query.subject_name))
         if self._query_subject_is_species():
             matches = self._filter_subjects_by_species(self._select_matching_relationships('live'))
         else:
             matches = self._select_matching_relationships(
                 'live',
                 subject_name=self.parsed_query.subject_name)
-        return [o.concept_name for o in [r.object for r in matches]].sort()
+        return sorted([o.concept_name for o in [r.object for r in matches]])
 
     def _animal_scales_query(self):
         """Does the subject have scales?
@@ -305,8 +320,8 @@ class FactQuery(object):
           Does an otter have scales?
           Do mammals have scales?
 
-        :rtype: bool
-        :return: True if animal has scales, False otherwise
+        :rtype: unicode
+        :return: 'yes' if relationship exists, 'no' otherwise
 
         """
         if self._query_subject_is_species():
@@ -317,7 +332,7 @@ class FactQuery(object):
                 'has',
                 subject_name=self.parsed_query.subject_name,
                 object_name='scales')
-        return len(matches) == 1
+        return self._bool_as_str(len(matches) == 1)
 
     def _which_animal_query(self):
         """Which animals have relationship_type with object?
