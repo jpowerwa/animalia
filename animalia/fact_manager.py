@@ -74,6 +74,30 @@ class FactManager(object):
     _non_alnum_exp = re.compile(r'[^\w\s]', flags=re.UNICODE)
 
     @classmethod
+    def add_concept(cls, concept_name, concept_type):
+        """Add Concept for name and type and 'is' relationship between the two.
+
+        Need this because wit is unfortunately bad at parsing important base facts
+        like 'mammals is a species.'
+
+        :type concept_name: unicode
+        :arg concept_name: name of concept, e.g. 'mammals'
+
+        :type concept_type: unicode
+        :arg concept_type: name of concept_type, e.g. 'species'
+        
+        """
+        concept = cls._ensure_concept(concept_name)
+        type_concept = cls._ensure_concept(concept_type)
+        is_relationship = cls._ensure_relationship(concept,
+                                                   type_concept,
+                                                   relationship_type_name='is',
+                                                   error_on_duplicate=False)
+
+        cls._merge_to_db_session(is_relationship)
+        fact_model.db.session.commit()
+
+    @classmethod
     def delete_fact_by_id(cls, fact_id):
         """Delete persisted data corresponding to this IncomingFact.
 

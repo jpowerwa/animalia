@@ -45,7 +45,8 @@ def add_data_from_record(rec):
         return [s.lower() for s in s.split(':')] if s else []
 
     concept = rec['concept']
-    add_sentence('{0} is a {1}'.format(concept, rec['type']))
+    add_concept(concept, rec['type'])
+
     if rec.get('parent species'):
         add_sentence('the {0} is a {1}'.format(concept, rec['parent species']))
     for v in split_str(rec.get('lives')):
@@ -62,6 +63,14 @@ def add_data_from_record(rec):
         add_sentence('the {0} has scales'.format(concept))
     for v in split_str(rec.get('eats')):
         add_sentence('the {0} eats {1}'.format(concept, v))
+
+def add_concept(concept_name, concept_type):
+    try:
+        fact_manager.FactManager.add_concept(concept_name, concept_type)
+        logger.info("Added concept '{0}' with type '{1}'".format(concept_name, concept_type))
+    except fact_manager.IncomingDataError as ex:
+        logger.error("Failed to add concept '{0}' with type '{1}': {2}".format(
+                concept_name, concept_type, ex))
 
 def add_sentence(sentence):
     fact = None
