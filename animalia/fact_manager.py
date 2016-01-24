@@ -156,11 +156,11 @@ class FactManager(object):
         # TODO: Handle wit parse error
         try:
             parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
+            query = fact_query.FactQuery(parsed_query=parsed_sentence)
+            return query.find_answer()
         except ValueError as ex:
             raise InvalidQueryDataError("Invalid query: {0}; wit_response={1}".format(
                     ex, wit_response))
-        query = fact_query.FactQuery(parsed_query=parsed_sentence)
-        return query.find_answer()
 
 
     # private methods
