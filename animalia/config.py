@@ -15,6 +15,8 @@ class Config(object):
     # Minimum threshold for wit response to be considered accurate
     parsed_data_confidence_threshold = 0.5
 
-    # Keyword for entity that is subject of sentence
-    parsed_data_subject_entity_types = ['animal']
+    # Keywords for entity that is subject of sentence
+    wit_subject_entity_types = ['animal']
+    # Keywords for entity that is sometimes object and sometimes subject of sentence
+    wit_alt_subject_entity_types = ['species']
     

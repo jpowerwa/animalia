@@ -155,8 +155,6 @@ class FactManager(object):
         wit_response = cls._query_wit(query_sentence)
         # TODO: Handle wit parse error
         try:
-            # Relationship is optional for certain query intents, 
-            # i.e. animal_eat_query and animal_place_query
             parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
         except ValueError as ex:
             raise InvalidQueryDataError("Invalid query: {0}; wit_response={1}".format(
@@ -215,7 +213,7 @@ class FactManager(object):
         # Ensure concept for type, e.g. 'animal'
         type_concept = cls._ensure_concept(concept_type)
 
-        # Verify no loop
+        # Verify no loop; if 'animal' has type 'food', 'food' cannot have type 'animal'
         if concept_name in [c.concept_name for c in type_concept.concept_types]:
             raise ConflictingFactError(
                 ("Cannot add relationship '{0} is {1}' because '{1} is {0}'".format(
@@ -428,7 +426,8 @@ class ParsedSentence(object):
     RELATIONSHIP_KEY = 'relationship'
     RELATIONSHIP_COUNT_KEY = 'number'
     RELATIONSHIP_NEGATION_KEY = 'negation'
-    SUBJECT_ENTITY_TYPES = Config.parsed_data_subject_entity_types
+    SUBJECT_ENTITY_TYPES = Config.wit_subject_entity_types
+    ALT_SUBJECT_ENTITY_TYPES = Config.wit_alt_subject_entity_types
 
     def __init__(self, text=None, confidence=None, intent=None, 
                  subject_name=None, subject_type=None, object_name=None, object_type=None,
@@ -463,11 +462,19 @@ class ParsedSentence(object):
     def from_wit_response(cls, response_data):
         """Factory method that extracts subject, object and relationship and data from wit response.
 
+        Extract if present:
+        * Sentence subject and subject_type, e.g. 'otter' and 'animal'
+        * Sentence object and object_type, e.g. 'legs' and 'body_part'
+        * Relationship type name, e.g. 'has'
+        * Relationship number, e.g. '4' 
+        * Relationship negation
+
         Verify:
         * Presence of '_text' attribute
         * Presence of exactly one outcome
         * Outcome 'intent' is defined
         * Confidence rating meets threshold
+        * Maximum one subject, one object and one relationship value
 
         :rtype: :py:class:`ParsedSentence`
         :return: instance of ParsedSentence
@@ -503,7 +510,13 @@ class ParsedSentence(object):
             raise ValueError("Outcome confidence falls below threshold: {0} < {1}".format(
                     instance.confidence, cls.CONFIDENCE_THRESHOLD))
 
-        # Identify relationship, subject and object entities
+        # Identify relationship, subject and object entities if present
+        # Hold onto entities with types in ALT_SUBJECT_ENTITY_TYPES list as temporary vars
+        alt_subject_name = None
+        alt_subject_type = None
+
+        # Iterate over entities; each entity is key (entity_type) referencing list of data
+        # from with entity value can be extracted.
         for entity_type, entity_data in outcome['entities'].iteritems(): 
             val, is_suggested = cls._get_entity_value(entity_type, entity_data)
             logger.debug("Parsed value '{0}' for entity '{1}'{2}".format(
@@ -529,12 +542,34 @@ class ParsedSentence(object):
                 instance.subject_type = entity_type
                 instance.subject_name = val
 
+            elif entity_type in cls.ALT_SUBJECT_ENTITY_TYPES:
+                if alt_subject_type:
+                    raise ValueError("Parsed multiple alt subject entities: {0}, {1}".format(
+                            alt_subject_type, entity_type))
+                alt_subject_type = entity_type
+                alt_subject_name = val
+
             else:
                 if instance.object_type:
                     raise ValueError("Parsed multiple object entities: {0}, {1}".format(
                             instance.object_type, entity_type))
                 instance.object_type = entity_type
                 instance.object_name = val
+
+        # If alt_subject data was found, determine whether it is subject, object or just confusing.
+        if alt_subject_type:
+            if not instance.subject_type:
+                logger.debug("Using alt_subject as subject: {0}, {1}".format(
+                        alt_subject_type, alt_subject_name))
+                instance.subject_type = alt_subject_type
+                instance.subject_name = alt_subject_name
+            elif not instance.object_type:
+                logger.debug("Using alt_subject as object: {0}, {1}".format(
+                        alt_subject_type, alt_subject_name))
+                instance.object_type = alt_subject_type
+                instance.object_name = alt_subject_name
+            else:
+                raise ValueError("Parsed alt_subject but both subject and object were found")
 
         # Serialize and preserve original response data
         instance.orig_response = json.dumps(response_data)
