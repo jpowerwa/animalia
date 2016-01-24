@@ -531,8 +531,10 @@ class ParsedSentence(object):
         # Skip outcomes with low confidence rating
         instance.confidence = outcome['confidence']
         if instance.confidence < cls.CONFIDENCE_THRESHOLD:
-            raise ValueError("Outcome confidence falls below threshold: {0} < {1}".format(
+            logger.warn("Outcome confidence falls below threshold: {0} < {1}".format(
                     instance.confidence, cls.CONFIDENCE_THRESHOLD))
+            # raise ValueError("Outcome confidence falls below threshold: {0} < {1}".format(
+            #         instance.confidence, cls.CONFIDENCE_THRESHOLD))
 
         # Identify relationship, subject and object entities if present
         # Hold onto entities with types in ALT_SUBJECT_ENTITY_TYPES list as temporary vars
