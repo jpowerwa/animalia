@@ -13,7 +13,7 @@ class Config(object):
     wit_app_id = '56300313-4dfd-4da3-a74d-2ae701d1cfbb'
 
     # Minimum threshold for wit response to be considered accurate
-    parsed_data_confidence_threshold = 0.7
+    parsed_data_confidence_threshold = 0.5
 
     # Keyword for entity that is subject of sentence
     parsed_data_subject_entity_types = ['animal']
