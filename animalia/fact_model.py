@@ -153,7 +153,7 @@ Relationship.relationship_types = sa_orm.relationship(RelationshipType, uselist=
 Relationship.relationship_type_names = sa_assoc_proxy.association_proxy(
     'relationship_types', 'relationship_type_name')
 
-Concept.concept_types = sa_orm.relationship(
+Concept.concept_type_relationships = sa_orm.relationship(
     Relationship, 
     primaryjoin=(
         sa.and_(Relationship.subject_id==Concept.concept_id,
@@ -161,6 +161,8 @@ Concept.concept_types = sa_orm.relationship(
                         RelationshipType.relationship_type_name=='is'))),
     uselist=True, 
     lazy=True)
+Concept.concept_types = sa_assoc_proxy.association_proxy(
+    'concept_type_relationships', 'object.concept_name')
 
 class IncomingFact(db.Model):
     __tablename__ = 'incoming_facts'
