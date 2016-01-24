@@ -114,14 +114,18 @@ class Relationship(db.Model):
         return db.session.query(cls).filter(filter_clause).first()
 
     @classmethod
-    def select_by_names(cls, relationship_type_name=None, subject_name=None, object_name=None):
-        """Select Relationships with specified relationship_type, subject, and object.
+    def select_by_values(cls, relationship_type_name=None, relationship_number=None,
+                         subject_name=None, object_name=None):
+        """Select Relationships with specified relationship_type, count, subject, and object.
 
         :rtype: [py:class:`~fact_model.Relationship`]
         :return: matching relationships; empty list if none are found
 
         :type relationship_type_name: unicode
         :arg relationship_type_name: name of relationship_type
+
+        :type relationship_number: int
+        :arg relationship_number: optional value of relationship 'count' attribute
 
         :type subject_name: unicode
         :arg subject_name: optional name of subject concept
@@ -133,6 +137,8 @@ class Relationship(db.Model):
         query = db.session.query(cls).\
             join(RelationshipType).\
             filter(RelationshipType.relationship_type_name==relationship_type_name)
+        if relationship_number:
+            query = query.filter(Relationship.count==relationship_number)
         if subject_name: 
             subject_concept = sa_orm.aliased(Concept)
             query = query.\

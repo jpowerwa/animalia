@@ -288,89 +288,112 @@ class RelationshipTests(FactModelTestCase):
 
     def _setup_relationships(self):
         # Concepts and relationships
-        fish = self._get_concept('fish')
-        frog = self._get_concept('frog')
-        animal = self._get_concept('animal')
-        food = self._get_concept('food')
+        high_heel = self._get_concept('high_heel')
+        trainer = self._get_concept('trainer')
+        shoe = self._get_concept('shoe')
+        safety_hazard = self._get_concept('safety_hazard')
         is_relationship_type = self._get_relationship_type('is')
-        eats_relationship_type = self._get_relationship_type('eats')
+        kicks_relationship_type = self._get_relationship_type('kicks')
 
-        # 'fish is animal'
-        fish_is_animal_id = uuid.uuid4()
-        relationship = Relationship(relationship_id=fish_is_animal_id,
-                                    subject=fish,
-                                    object=animal,
+        # 'high_heel is shoe'
+        high_heel_is_shoe_id = uuid.uuid4()
+        relationship = Relationship(relationship_id=high_heel_is_shoe_id,
+                                    subject=high_heel,
+                                    object=shoe,
                                     relationship_types=[is_relationship_type])
         db.session.add(relationship)
         
-        # 'fish is food'
-        fish_is_food_id = uuid.uuid4()
-        relationship = Relationship(relationship_id=fish_is_food_id,
-                                    subject=fish,
-                                    object=food,
+        # 'high_heel is safety_hazard'
+        high_heel_is_safety_hazard_id = uuid.uuid4()
+        relationship = Relationship(relationship_id=high_heel_is_safety_hazard_id,
+                                    subject=high_heel,
+                                    object=safety_hazard,
                                     relationship_types=[is_relationship_type])
         db.session.add(relationship)
 
-        # 'frog is animal'
-        frog_is_animal_id = uuid.uuid4()
-        relationship = Relationship(relationship_id=frog_is_animal_id,
-                                    subject=frog,
-                                    object=animal,
+        # 'trainer is shoe'
+        trainer_is_shoe_id = uuid.uuid4()
+        relationship = Relationship(relationship_id=trainer_is_shoe_id,
+                                    subject=trainer,
+                                    object=shoe,
                                     relationship_types=[is_relationship_type])
         db.session.add(relationship)
 
-        # 'fish eats frog'
-        fish_eats_frog_id = uuid.uuid4()
-        relationship = Relationship(relationship_id=fish_eats_frog_id,
-                                    subject=fish,
-                                    object=frog,
-                                    relationship_types=[eats_relationship_type])
+        # 'high_heel kicks trainer'
+        high_heel_kicks_trainer_id = uuid.uuid4()
+        relationship = Relationship(relationship_id=high_heel_kicks_trainer_id,
+                                    subject=high_heel,
+                                    object=trainer,
+                                    relationship_types=[kicks_relationship_type],
+                                    count=3)
         db.session.add(relationship)
         self.reset_session()
 
-    def test_relationship__select_by_names(self):
-        """Verify select_by_names method.
+    def test_relationship__select_by_values(self):
+        """Verify select_by_values method.
         """
         self._setup_relationships()
-        matches = Relationship.select_by_names(relationship_type_name='is',
-                                               subject_name='fish',
-                                               object_name='animal')
+        matches = Relationship.select_by_values(relationship_type_name='is',
+                                                subject_name='high_heel',
+                                                object_name='shoe')
         self.assertEqual(1, len(matches))
         rel = matches[0]
         self.assertTrue('is' in rel.relationship_type_names)
-        self.assertEqual('fish', rel.subject.concept_name)
-        self.assertEqual('animal', rel.object.concept_name)
+        self.assertEqual('high_heel', rel.subject.concept_name)
+        self.assertEqual('shoe', rel.object.concept_name)
 
-    def test_relationship__select_by_names__no_subject(self):
-        """Verify select_by_names method with no subject name provided.
+    def test_relationship__select_by_values__no_subject(self):
+        """Verify select_by_values method with no subject name provided.
         """
         self._setup_relationships()
-        matches = Relationship.select_by_names(relationship_type_name='is',
-                                               object_name='animal')
+        matches = Relationship.select_by_values(relationship_type_name='is',
+                                                object_name='shoe')
         self.assertEqual(2, len(matches))
-        self.assertEqual(set(['fish', 'frog']),
+        self.assertEqual(set(['high_heel', 'trainer']),
                          set([s.concept_name for s in [m.subject for m in matches]]))
 
-    def test_relationship__select_by_names__no_object(self):
-        """Verify select_by_names method with no object name provided.
+    def test_relationship__select_by_values__no_object(self):
+        """Verify select_by_values method with no object name provided.
         """
         self._setup_relationships()
-        matches = Relationship.select_by_names(relationship_type_name='is',
-                                               subject_name='fish')
+        matches = Relationship.select_by_values(relationship_type_name='is',
+                                                subject_name='high_heel')
         self.assertEqual(2, len(matches))
-        self.assertEqual(set(['food', 'animal']), 
+        self.assertEqual(set(['safety_hazard', 'shoe']), 
                          set([o.concept_name for o in [m.object for m in matches]]))
 
-    def test_relationship__select_by_names__no_subject_or_object(self):
-        """Verify select_by_names method with neither subject_name or object_name provided.
+    def test_relationship__select_by_values__no_subject_or_object(self):
+        """Verify select_by_values method with neither subject_name or object_name provided.
         """
         self._setup_relationships()
-        matches = Relationship.select_by_names(relationship_type_name='is')
-        self.assertEqual(3, len(matches))
-        self.assertEqual(set(['fish', 'frog']),
-                         set([s.concept_name for s in [m.subject for m in matches]]))
-        self.assertEqual(set(['food', 'animal']), 
-                         set([o.concept_name for o in [m.object for m in matches]]))
+        matches = Relationship.select_by_values(relationship_type_name='is')
+        self.assertTrue(len(matches) >= 3)
+        subject_names = set([s.concept_name for s in [m.subject for m in matches]])
+        object_names = set([o.concept_name for o in [m.object for m in matches]])
+        self.assertTrue(subject_names.issuperset(set(['high_heel', 'trainer'])))
+        self.assertTrue(object_names.issuperset(set(['safety_hazard', 'shoe'])))
+
+    def test_relationship__select_by_values__relationship_number(self):
+        """Verify select_by_values method when relationship_number is specified.
+        """
+        self._setup_relationships()
+        matches = Relationship.select_by_values(relationship_type_name='kicks',
+                                                relationship_number=3,
+                                                subject_name='high_heel',
+                                                object_name='trainer')
+        self.assertEqual(1, len(matches))
+        rel = matches[0]
+        self.assertTrue('kicks' in rel.relationship_type_names)
+        self.assertEqual(3, rel.count)
+        self.assertEqual('high_heel', rel.subject.concept_name)
+        self.assertEqual('trainer', rel.object.concept_name)
+
+        # Verify that count is being matched by specifying different value
+        matches = Relationship.select_by_values(relationship_type_name='kicks',
+                                                relationship_number=13,
+                                                subject_name='high_heel',
+                                                object_name='trainer')
+        self.assertEqual(0, len(matches))
 
     def test_relationship__subject_relation(self):
         """Verify subject relation on Relationship.
@@ -579,35 +602,35 @@ class RelationshipTests(FactModelTestCase):
         subject_concept = db.session.query(Concept).filter_by(
             concept_id=subject_concept.concept_id).first()
         self.assertIsNotNone(subject_concept)
-        self.assertEqual(1, len(subject_concept.concept_types))
+        self.assertEqual(['shoe'], subject_concept.concept_types)
         self.assertEqual(object_concept.concept_id, 
-                         subject_concept.concept_types[0].object.concept_id)
+                         subject_concept.concept_type_relationships[0].object.concept_id)
 
     def test_concept_types_relationship__multiple(self):
         """Test concept_types on one concept that is two different things.
         """
-        fish = self._get_concept('fish')
-        animal =  self._get_concept('animal')
-        food =  self._get_concept('food')
+        high_heel = self._get_concept('high_heel')
+        shoe =  self._get_concept('shoe')
+        safety_hazard =  self._get_concept('safety_hazard')
         rel_type = self._get_relationship_type('is')
-        relationship = Relationship(subject=fish,
-                                    object=animal,
+        relationship = Relationship(subject=high_heel,
+                                    object=shoe,
                                     relationship_types=[rel_type])
         db.session.add(relationship)
-        relationship = Relationship(subject=fish,
-                                    object=food,
+        relationship = Relationship(subject=high_heel,
+                                    object=safety_hazard,
                                     relationship_types=[rel_type])
         db.session.add(relationship)
         self.reset_session()
 
         # select concept
-        fish = db.session.query(Concept).filter_by(concept_id=fish.concept_id).first()
-        self.assertIsNotNone(fish)
+        high_heel = db.session.query(Concept).filter_by(concept_id=high_heel.concept_id).first()
+        self.assertIsNotNone(high_heel)
         
         # check concept_types relationships
-        self.assertEqual(2, len(fish.concept_types))
-        self.assertEqual(set([animal.concept_id, food.concept_id]),
-                         set([r.object.concept_id for r in fish.concept_types]))
+        self.assertEqual(set(['shoe', 'safety_hazard']), set(high_heel.concept_types))
+        self.assertEqual(set([shoe.concept_id, safety_hazard.concept_id]),
+                         set([r.object.concept_id for r in high_heel.concept_type_relationships]))
 
 
 class IncomingFactTests(FactModelTestCase):
