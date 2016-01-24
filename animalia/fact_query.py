@@ -277,6 +277,11 @@ class FactQuery(object):
 
         """
         logger.debug("animal_attribute_query: '{0}'".format(self.parsed_query.text))
+        if not (self.parsed_query.subject_name 
+                and self.parsed_query.object_name
+                and self.parsed_query.relationship_type_name):
+            raise ValueError("animal_attribute_query requires subject, object and relationship")
+
         matches = self._select_matching_relationships(
             self.parsed_query.relationship_type_name,
             subject_name=self._get_synonymous_names(self.parsed_query.subject_name),
@@ -297,6 +302,9 @@ class FactQuery(object):
 
         """
         logger.debug("animal_eat_query: '{0}'".format(self.parsed_query.text))
+        if not self.parsed_query.subject_name:
+            raise ValueError("animal_eat_query requires subject_name")
+
         if self._query_subject_is_species():
             logger.debug("Filter 'eat' relationships by species")
             matches = self._filter_subjects_by_species(self._select_matching_relationships('eat'))
@@ -319,6 +327,9 @@ class FactQuery(object):
 
         """
         logger.debug("animal_fur_query: '{0}'".format(self.parsed_query.text))
+        if not self.parsed_query.subject_name:
+            raise ValueError("animal_fur_query requires subject_name")
+
         if self._query_subject_is_species():
             matches = self._filter_subjects_by_species(
                 self._select_matching_relationships('has', object_name='fur'))
@@ -349,6 +360,11 @@ class FactQuery(object):
 
         """
         logger.debug("animal_how_many_query: '{0}'".format(self.parsed_query.text))
+        if not (self.parsed_query.subject_name 
+                and self.parsed_query.object_name
+                and self.parsed_query.relationship_type_name):
+            raise ValueError("animal_how_many_query requires subject, object and relationship")
+
         answer = None
         if self.parsed_query.subject_name == 'animals':
             # First scenario: How many animals have legs?
@@ -378,6 +394,9 @@ class FactQuery(object):
 
         """
         logger.debug("animal_place_query: '{0}'".format(self.parsed_query.text))
+        if not self.parsed_query.subject_name:
+            raise ValueError("animal_place_query requires subject_name")
+
         if self._query_subject_is_species():
             matches = self._filter_subjects_by_species(self._select_matching_relationships('live'))
         else:
@@ -398,6 +417,9 @@ class FactQuery(object):
 
         """
         logger.debug("animal_scales_query: '{0}'".format(self.parsed_query.text))
+        if not self.parsed_query.subject_name:
+            raise ValueError("animal_scales_query requires subject_name")
+
         if self._query_subject_is_species():
             matches = self._filter_subjects_by_species(
                 self._select_matching_relationships('has', object_name='scales'))
@@ -429,6 +451,10 @@ class FactQuery(object):
 
         """
         logger.debug("which_animal_query: '{0}'".format(self.parsed_query.text))
+        if not (self.parsed_query.subject_name 
+                and self.parsed_query.object_name
+                and self.parsed_query.relationship_type_name):
+            raise ValueError("which_animal_query requires subject, object and relationship")
 
         if self._query_object_is_species():
             logger.debug("_which_animal_query on species '{0}', relationship_type='{1}'".format(
