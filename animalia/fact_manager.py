@@ -108,6 +108,7 @@ class FactManager(object):
         :arg fact_id: id of IncomingFact to be deleted
 
         """
+        logger.debug("Deleting fact {0}".format(fact_id))
         deleted_fact_id = None
         fact = fact_model.IncomingFact.select_by_id(fact_id)
         if fact:
@@ -115,6 +116,7 @@ class FactManager(object):
                 cls._delete_from_db_session(relationship)
             cls._delete_from_db_session(fact)
             deleted_fact_id = fact_id
+            fact_model.db.session.commit()
         return deleted_fact_id
 
     @classmethod
@@ -197,7 +199,7 @@ class FactManager(object):
         :arg model: instance to delete from db session
 
         """
-        fact_model.db.session.delete(relationship)
+        fact_model.db.session.delete(model)
 
     @classmethod
     def _ensure_concept(cls, concept_name):
