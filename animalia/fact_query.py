@@ -48,27 +48,22 @@ class FactQuery(object):
         """
         return 'yes' if val else 'no'
 
-    def _filter_concepts_by_type(self, concepts, concept_types):
-        """Filter concepts by list of concept_types.
+    def _concept_is_species(self, concept_name):
+        """Determine if specified concept is a species or not.
 
-        :rtype: [:py:class:`fact_model.Concept`, ...]
-        :return: list of concepts with concept_type intersecting provided list of concept_types
+        :rtype: bool
+        :return: True if specified concept is a species, False otherwise
 
-        :type concepts: [:py:class:`fact_model.Concept`, ...]
-        :arg concepts: list of concepts to filter by concept_type
+        :type concept_name: unicode
+        :arg concept_name: name of concept
 
-        :type concept_types: [unicode, ...]
-        :arg concept_types: concept_types to filter on
-        
         """
-        target_concept_types = set(concept_types)
-        logger.debug("Filtering concepts by concept_type {0}".format(target_concept_types))
-
-        filtered_concepts = []
-        for c in concepts:
-            if len(target_concept_types.intersection(set(c.concept_types))) > 0:
-                filtered_concepts.append(c)
-        return filtered_concepts
+        matches = self._select_matching_relationships(
+            'is', 
+            subject_name=self._get_synonymous_names(concept_name),
+            object_name='species',
+            stop_on_match=True)
+        return bool(matches)
 
     def _filter_relationships_by_concept_type(self, matches, concept_types=None, 
                                               relationship_attr=None):
@@ -88,9 +83,6 @@ class FactQuery(object):
         
         """
         target_concept_types = set(concept_types)
-        logger.debug("Filtering relationship {0} by concept_type {1}".format(
-                relationship_attr, target_concept_types))
-
         filtered_matches = []
         for m in matches:
             m_concept_types = set([ct for ct in (getattr(m, relationship_attr)).concept_types])
@@ -120,6 +112,10 @@ class FactQuery(object):
     def _get_synonymous_names(self, orig_name):
         """Generate singular and plural versions of specified species or animal name.
 
+        This is a naive implementation and incorrect for certain concepts, i.e.
+        'berries', 'deer', 'fish', 'grass', 'salmon'. Nevertheless, it increases the
+        number of queries that can be answered.
+
         :rtype: [unicode, ...]
         :return: list of singular and plural versions of name (sorted for test convenience)
 
@@ -133,23 +129,6 @@ class FactQuery(object):
         else:
             names.append(orig_name + 's')
         return sorted(names)
-
-    def _concept_is_species(self, concept_name):
-        """Determine if specified concept is a species or not.
-
-        :rtype: bool
-        :return: True if specified concept is a species, False otherwise
-
-        :type concept_name: unicode
-        :arg concept_name: name of concept
-
-        """
-        matches = self._select_matching_relationships(
-            'is', 
-            subject_name=self._get_synonymous_names(concept_name),
-            object_name='species',
-            stop_on_match=True)
-        return bool(matches)
 
     def _select_by_concept_type(self, concept_types):
         """Select all concepts that have 'is' relationship to one of specified concept_types.
@@ -206,13 +185,11 @@ class FactQuery(object):
             for s_name in s_names or [None]:
                 for o_name in o_names or [None]:
                     if not all_matches or not stop_on_match:
-                        logger.debug("Querying for subject={0}, object={1}".format(s_name, o_name))
                         matches = fact_model.Relationship.select_by_values(
                             relationship_type_name=relationship_type_name,
                             relationship_number=relationship_number,
                             subject_name=s_name,
                             object_name=o_name)
-                        logger.debug("Found {0} matches".format(len(matches)))
                         all_matches.extend(matches)
 
         logger.debug(
@@ -300,8 +277,6 @@ class FactQuery(object):
                     concept_types=self._get_synonymous_names(object_name),
                     relationship_attr='object')
 
-        logger.debug("Matches: {0}".format(
-                [(m.subject.concept_name, m.object.concept_name) for m in matches]))
         return self._bool_as_str(len(matches) >= 1)
 
     def _animal_eat_query(self):
@@ -351,7 +326,7 @@ class FactQuery(object):
           How many animals do not have four legs?
           How many animals live in the forest?
           How many animals eat berries?
-          How many animals eat reptiles? (Not handled)
+          How many animals eat reptiles?
           
         :rtype: int
         :return: number of relationships or relationship count attribute
@@ -367,7 +342,6 @@ class FactQuery(object):
         if self.parsed_query.subject_name == 'animals':
             # First scenario: How many animals have legs?
             matches = self._which_animal_query()
-            logger.debug("{0} matches".format(len(matches)))
             answer = len(matches)
         else:
             # Second scenario: How many legs does the otter have?
@@ -479,19 +453,19 @@ class FactQuery(object):
             object_name=self._get_synonymous_names(self.parsed_query.object_name),
             relationship_number=self.parsed_query.relationship_number)
 
-        if not matches and self._concept_is_species(self.parsed_query.object_name):
+        # Do next query even if there are matches from previous query. This takes care
+        # of cases where object is sometimes direct reference to species and other times
+        # member of species.
+        if self._concept_is_species(self.parsed_query.object_name):
             logger.debug("Find animals with relationship '{0}' to species '{1}'".format(
                     self.parsed_query.relationship_type_name,
                     self.parsed_query.object_name))
-            matches = self._filter_relationships_by_concept_type(
-                self._select_matching_relationships(
-                    self.parsed_query.relationship_type_name,
-                    relationship_number=self.parsed_query.relationship_number),
-                concept_types=self._get_synonymous_names(self.parsed_query.object_name), 
-                relationship_attr='object')
-
-        logger.debug("Found {0} matches: {1}".format(
-                len(matches), [m.subject.concept_name for m in matches]))
+            matches.extend(self._filter_relationships_by_concept_type(
+                    self._select_matching_relationships(
+                        self.parsed_query.relationship_type_name,
+                        relationship_number=self.parsed_query.relationship_number),
+                    concept_types=self._get_synonymous_names(self.parsed_query.object_name), 
+                    relationship_attr='object'))
 
         # Filter results by concept_type of subject, i.e. 'animal' or particular species
         concept_types = ['animal']
@@ -499,7 +473,8 @@ class FactQuery(object):
             concept_types = self._get_synonymous_names(self.parsed_query.subject_name)
         matches = self._filter_relationships_by_concept_type(
             matches, concept_types=concept_types, relationship_attr='subject')
-        match_names = [m.subject.concept_name for m in matches]
+        # De-dupe match names.
+        match_names = list(set([m.subject.concept_name for m in matches]))
         logger.debug("Matching subjects: {0}".format(match_names))
 
         # Reverse selection if relationship is negated
