@@ -1,5 +1,5 @@
 concept,type,lives,has body part,has fur,has scales,eats,parent species,leg count
-bear,animal,forest:meadow,leg:tail,TRUE,FALSE,berries:insects:fish,mammal,4
+bear,animal,forest:meadow,leg:tail,TRUE,FALSE,berries:insects:salmon,mammal,4
 deer,animal,forest:meadow,leg:tail,TRUE,FALSE,grass,mammal,4
 skunk,animal,forest:meadow,Leg:tail,TRUE,FALSE,berries:insects,mammal,4
 gecko,animal,tree,Leg:tail,FALSE,TRUE,insects,reptile,4
