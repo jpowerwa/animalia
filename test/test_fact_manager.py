@@ -12,17 +12,12 @@ import logging
 import unittest
 import uuid
 
-from mock import ANY, Mock, patch
+from mock import Mock, patch
 
-from animalia.fact_manager import (logger,
-                                   FactManager, 
-                                   ParsedSentence,
-                                   IncomingDataError,
-                                   SentenceParseError, 
-                                   InvalidFactDataError,
-                                   ConflictingFactError,
-                                   DuplicateFactError)
+import animalia.exc as exc
 import animalia.fact_model as fact_model
+from animalia.fact_manager import logger, FactManager
+from animalia.parsed_sentence import ParsedSentence
 import wit_responses
 
 # Set log level for unit tests
@@ -96,12 +91,15 @@ class FactManagerTests(unittest.TestCase):
         self.assertEqual(0, save_fact.call_count)
         self.assertEqual(0, commit_txn.call_count)
 
+    @patch.object(ParsedSentence, 'validate_fact')
     @patch.object(ParsedSentence, 'from_wit_response')
     @patch.object(FactManager, '_query_wit')
     @patch.object(fact_model.IncomingFact, 'select_by_text')
     @patch.object(FactManager, '_normalize_sentence')
-    def test_fact_from_sentence__not_fact_sentence(self, normalize_sentence, select_fact, query_wit,
-                                                   from_response):
+    def test_fact_from_sentence__validation_failed(self, normalize_sentence, select_fact, 
+                                                   query_wit, from_response, validate_fact):
+        """Verify raise if fact fails validation.
+        """
         # Set up mocks and test data
         mock_sentence = Mock(name='sentence')
         normalize_sentence.return_value = mock_normalized_sentence = Mock(name='norm_sentence')
@@ -112,43 +110,21 @@ class FactManagerTests(unittest.TestCase):
                                     intent='horse farm',
                                     is_fact=Mock(return_value=False),
                                     relationship_negation=False)
-        from_response.return_value = mock_parsed_sentence
+        from_response.return_value = ParsedSentence()
+        validate_fact.side_effect = ValueError("Bad fact")
 
-        self.assertRaisesRegexp(InvalidFactDataError,
-                                "Invalid fact: Sentence has non-fact intent 'horse farm'",
+        self.assertRaisesRegexp(exc.InvalidFactDataError,
+                                "Invalid fact: Bad fact; wit_response=",
                                 FactManager.fact_from_sentence,
                                 mock_sentence)
            
-    @patch.object(ParsedSentence, 'from_wit_response')
-    @patch.object(FactManager, '_query_wit')
-    @patch.object(fact_model.IncomingFact, 'select_by_text')
-    @patch.object(FactManager, '_normalize_sentence')
-    def test_fact_from_sentence__negated_relationship(self, normalize_sentence, select_fact, 
-                                                      query_wit, from_response):
-        # Set up mocks and test data
-        mock_sentence = Mock(name='sentence')
-        normalize_sentence.return_value = mock_normalized_sentence = Mock(name='norm_sentence')
-        select_fact.return_value = None
-        test_data = copy.deepcopy(wit_responses.animal_species_fact_data)
-        query_wit.return_value = json.dumps(test_data)
-        mock_parsed_sentence = Mock(name='parsed_sentence', 
-                                    intent='horse farm',
-                                    is_fact=Mock(return_value=True),
-                                    relationship_negation=True)
-        from_response.return_value = mock_parsed_sentence
-
-        self.assertRaisesRegexp(InvalidFactDataError,
-                                "Invalid fact: Cannot handle fact with negated relationship",
-                                FactManager.fact_from_sentence,
-                                mock_sentence)
-
     @patch.object(FactManager, '_normalize_sentence')
     def test_fact_from_sentence__no_sentence(self, normalize_sentence):
         """Verify SentenceParseError if no sentence is provided.
         """
         for empty in (None, ''):
             normalize_sentence.return_value = empty
-            self.assertRaisesRegexp(SentenceParseError,
+            self.assertRaisesRegexp(exc.SentenceParseError,
                                     'Empty fact sentence provided',
                                     FactManager.fact_from_sentence, 
                                     'the otter lives in the river')
@@ -156,7 +132,7 @@ class FactManagerTests(unittest.TestCase):
     def test_fact_from_sentence__no_normalized_sentence(self):
         """Verify SentenceParseError if sentence normalizes to empty string.
         """
-        self.assertRaisesRegexp(SentenceParseError,
+        self.assertRaisesRegexp(exc.SentenceParseError,
                                 'Empty fact sentence provided',
                                 FactManager.fact_from_sentence, 
                                 '')
@@ -228,8 +204,8 @@ class SaveParsedFactTests(unittest.TestCase):
         dup_fact_id = uuid.uuid4()
         select_fact.return_value = mock_fact = Mock(name='fact')
         ensure_concept.side_effect = [Mock(name='subject_concept'), Mock(name='object_concept')]
-        ensure_relationship.side_effect = DuplicateFactError('uh oh',
-                                                             duplicate_fact_id=dup_fact_id)
+        ensure_relationship.side_effect = exc.DuplicateFactError('uh oh',
+                                                                 duplicate_fact_id=dup_fact_id)
 
         # Make call
         with patch.object(logger, 'warn') as log_warn:
@@ -252,13 +228,17 @@ class EnsureConceptWithTypeTests(unittest.TestCase):
         """Verify calls made by _ensure_concept_with_type.
         """
         # Set up mocks and test data
-        mock_subj_concept = Mock(name='subj_concept')
-        mock_subj_type_concept = Mock(name='obj_concept')
+        concept_name = 'high heel'
+        concept_type = 'shoes'
+        mock_subj_concept = Mock(name='subj_concept', 
+                                 concept_name=concept_name, 
+                                 concept_types=[])
+        mock_subj_type_concept = Mock(name='obj_concept', 
+                                      concept_name=concept_type, 
+                                      concept_types=['accessory'])
         ensure_concept.side_effect = [mock_subj_concept, mock_subj_type_concept]
         ensure_relationship.return_value = mock_rel = Mock(name='relationship',
                                                            subject=mock_subj_concept)
-        concept_name = 'high heel'
-        concept_type = 'shoes'
         mock_fact_id = Mock(name='new_fact_id')
 
         # Make call
@@ -271,14 +251,51 @@ class EnsureConceptWithTypeTests(unittest.TestCase):
         # Verify mocks
         call_args_list = ensure_concept.call_args_list
         self.assertEqual(2, len(call_args_list))
-        self.assertEqual('high heel', call_args_list[0][0][0])
-        self.assertEqual('shoes', call_args_list[1][0][0])
+        self.assertEqual(concept_name, call_args_list[0][0][0])
+        self.assertEqual(concept_type, call_args_list[1][0][0])
         
         ensure_relationship.assert_called_once_with(mock_subj_concept, 
                                                     mock_subj_type_concept,
                                                     relationship_type_name='is',
                                                     new_fact_id=mock_fact_id,
                                                     error_on_duplicate=False)
+
+    @patch.object(FactManager, '_ensure_relationship')
+    @patch.object(FactManager, '_ensure_concept')
+    def test_ensure_concept_with_type__loop(self, ensure_concept, ensure_relationship):
+        """Verify calls made by _ensure_concept_with_type when loop is detected.
+        """
+        # Set up mocks and test data
+        concept_name = 'high heel'
+        concept_type = 'shoes'
+        conflicting_fact_id = uuid.uuid4()
+        mock_subj_concept = Mock(name='subj_concept', 
+                                 concept_name=concept_name, 
+                                 concept_types=[])
+        mock_concept_type_rels = [Mock(name='foo_relationship',
+                                       fact_id=uuid.uuid4(),
+                                       object=Mock(concept_name='foo')),
+                                  Mock(name='concept_type_relationship',
+                                       fact_id=conflicting_fact_id,
+                                       object=Mock(concept_name=concept_name))]
+        mock_subj_type_concept = Mock(name='obj_concept', 
+                                      concept_name=concept_type, 
+                                      concept_types=['foo', concept_name],
+                                      concept_type_relationships=mock_concept_type_rels)
+        ensure_concept.side_effect = [mock_subj_concept, mock_subj_type_concept]
+
+        # Make call
+        try:
+            FactManager._ensure_concept_with_type(concept_name, concept_type)
+            self.fail("Did not expect to get here")
+        except exc.ConflictingFactError as ex:
+            expected_msg = ("Cannot add relationship 'high heel is shoes'; "
+                            "existing relationship 'shoes is high heel'")
+            self.assertEqual(expected_msg, ex.message)
+            self.assertEqual(conflicting_fact_id, ex.conflicting_fact_id)
+
+        self.assertEqual(0, ensure_relationship.call_count)
+
 
 @patch.object(fact_model.Relationship, 'select_by_foreign_keys')
 @patch.object(fact_model.RelationshipType, 'select_by_name')
@@ -372,7 +389,7 @@ class EnsureRelationshipTests(unittest.TestCase):
 
         # Make call
         self.assertRaisesRegexp(
-            DuplicateFactError,
+            exc.DuplicateFactError,
             'Found existing fact {0} with subject={1}, object={2}, relationship={3}'.format(
                 mock_rel.fact_id, self.subj_concept.concept_name, self.obj_concept.concept_name,
                 r_name),
@@ -397,7 +414,7 @@ class EnsureRelationshipTests(unittest.TestCase):
 
         # Make call
         self.assertRaisesRegexp(
-            DuplicateFactError,
+            exc.DuplicateFactError,
             'Found existing fact {0} with subject={1}, object={2}, relationship={3}'.format(
                 mock_rel.fact_id, self.subj_concept.concept_name, self.obj_concept.concept_name,
                 r_name),
@@ -422,7 +439,7 @@ class EnsureRelationshipTests(unittest.TestCase):
 
         # Make call
         self.assertRaisesRegexp(
-            DuplicateFactError,
+            exc.DuplicateFactError,
             'Found existing fact {0} with subject={1}, object={2}, relationship={3}'.format(
                 mock_rel.fact_id, self.subj_concept.concept_name, self.obj_concept.concept_name,
                 r_name),
@@ -447,7 +464,7 @@ class EnsureRelationshipTests(unittest.TestCase):
 
         # Make call
         self.assertRaisesRegexp(
-            ConflictingFactError,
+            exc.ConflictingFactError,
             ('Found conflicting fact {0} with subject={1}, object={2}, relationship={3}; '
              'persisted count conflicts with specified count: 3 vs 4').format(
                 mock_rel.fact_id, self.subj_concept.concept_name, self.obj_concept.concept_name,
@@ -533,188 +550,3 @@ class DeleteFactTests(unittest.TestCase):
         self.assertEqual(0, select_relationships.call_count)
         self.assertEqual(0, delete_from_session.call_count)
 
-  
-class ParsedSentenceTests(unittest.TestCase):
-    """Verify ParsedSentence behavior.
-    """
-    def setUp(self):
-        self.parsed_data = copy.deepcopy(wit_responses.animal_species_fact_data)
-
-    def test_from_wit_response(self):
-        """Verify that valid data passes from_wit_response factory method.
-        """
-        parsed_sentence = ParsedSentence.from_wit_response(self.parsed_data)
-        self.assertEqual('the otter is a mammal', parsed_sentence.text)
-        self.assertEqual(0.9, parsed_sentence.confidence)
-        self.assertEqual('animal_species_fact', parsed_sentence.intent)
-        self.assertEqual('otter', parsed_sentence.subject_name)
-        self.assertEqual('animal', parsed_sentence.subject_type)
-        self.assertEqual('mammal', parsed_sentence.object_name)
-        self.assertEqual('species', parsed_sentence.object_type)
-        self.assertEqual('is a', parsed_sentence.relationship_type_name)
-        self.assertIsNone(parsed_sentence.relationship_number)
-        self.assertFalse(parsed_sentence.relationship_negation)
-        self.assertEqual(json.dumps(self.parsed_data), parsed_sentence.orig_response)
-
-    def test_from_wit_response__number_entity(self):
-        """Verify that valid data with 'number' entity passes from_wit_response factory method.
-        """
-        test_data = copy.deepcopy(wit_responses.animal_leg_fact_data)
-        parsed_sentence = ParsedSentence.from_wit_response(test_data)
-        self.assertEqual('the otter has four legs', parsed_sentence.text)
-        self.assertEqual(0.994, parsed_sentence.confidence)
-        self.assertEqual('animal_leg_fact', parsed_sentence.intent)
-        self.assertEqual('otter', parsed_sentence.subject_name)
-        self.assertEqual('animal', parsed_sentence.subject_type)
-        self.assertEqual('legs', parsed_sentence.object_name)
-        self.assertEqual('body_part', parsed_sentence.object_type)
-        self.assertEqual('has', parsed_sentence.relationship_type_name)
-        self.assertEqual('4', parsed_sentence.relationship_number)
-        self.assertFalse(parsed_sentence.relationship_negation)
-        self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
-
-    def test_from_wit_response__relationship_negation(self):
-        """Verify that 'negation' entity is detected.
-        """
-        test_data = copy.deepcopy(wit_responses.which_animal_question__negated)
-        parsed_sentence = ParsedSentence.from_wit_response(test_data)
-        self.assertEqual('which animals do not eat fish', parsed_sentence.text)
-        self.assertEqual(0.998, parsed_sentence.confidence)
-        self.assertEqual('which_animal_question', parsed_sentence.intent)
-        self.assertEqual('animals', parsed_sentence.subject_name)
-        self.assertEqual('animal', parsed_sentence.subject_type)
-        self.assertEqual('fish', parsed_sentence.object_name)
-        self.assertEqual('food', parsed_sentence.object_type)
-        self.assertEqual('eat', parsed_sentence.relationship_type_name)
-        self.assertTrue(parsed_sentence.relationship_negation)
-        self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
-
-    def test_from_wit_response__multiple_relationship_type_names(self):
-        """Verify that outcome with multiple relationship names is handled.
-        """
-        self.parsed_data['outcomes'][0]['entities']['relationship'].append(
-            {'type': 'value', 'value': 'another_relationship'})
-        with patch.object(logger, 'warn') as log_warn:
-            parsed_sentence = ParsedSentence.from_wit_response(self.parsed_data)
-        self.assertEqual(1, log_warn.call_count)
-        self.assertTrue(log_warn.call_args[0][0].startswith('Multiple relationship names'))
-        self.assertEqual('the otter is a mammal', parsed_sentence.text)
-        self.assertEqual('is a', parsed_sentence.relationship_type_name)
-
-    def test_from_wit_response__no_text_attr(self):
-        """Verify that parsed data without _text attribute fails.
-        """
-        del self.parsed_data['_text']
-        self.assertRaisesRegexp(ValueError,
-                                'Response data has no _text attribute',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_from_wit_response__multiple_outcomes(self):
-        """Verify that parsed data with extra 'outcome' attributes fails.
-        """
-        self.parsed_data['outcomes'].append({})
-        self.assertRaisesRegexp(ValueError,
-                                'Expected 1 outcome, found 2',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_from_wit_response__zero_outcomes(self):
-        """Verify that parsed data with no 'outcome' attributes fails.
-        """
-        del self.parsed_data['outcomes']
-        self.assertRaisesRegexp(ValueError,
-                                'Expected 1 outcome, found 0',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_from_wit_response__low_confidence(self):
-        """Verify that outcome with confidence below threshold does not pass.
-        """
-        self.parsed_data['outcomes'][0]['confidence'] = ParsedSentence.CONFIDENCE_THRESHOLD - 0.1
-        self.assertRaisesRegexp(ValueError,
-                                'Outcome confidence falls below threshold: 0.6 < 0.7',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_from_wit_response__no_relationship(self):
-        """Verify that outcome with no relationship entity fails.
-        """
-        del self.parsed_data['outcomes'][0]['entities']['relationship']
-        self.assertRaisesRegexp(ValueError,
-                                'No relationship entity found',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_from_wit_response__multiple_subject_entities(self):
-        """Verify that outcome with multiple subject entities fails.
-        """
-        orig_subject_types = ParsedSentence.SUBJECT_ENTITY_TYPES
-        ParsedSentence.SUBJECT_ENTITY_TYPES = ['animal', 'species']
-
-        try:
-            ParsedSentence.from_wit_response(self.parsed_data)
-            self.fail("Did not expect to get here")
-        except ValueError as ex:
-            msg = str(ex)
-            self.assertTrue(msg.startswith('Found multiple subject entities: '))
-            self.assertTrue('animal' in msg)
-            self.assertTrue('species' in msg)
-        finally:
-            ParsedSentence.SUBJECT_ENTITY_TYPES = orig_subject_types
-
-    def test_from_wit_response__zero_subject_entities(self):
-        """Verify that outcome with zero subject entities fails.
-        """
-        del self.parsed_data['outcomes'][0]['entities']['animal']
-        self.assertRaisesRegexp(ValueError,
-                                'No subject entity found',   
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_from_wit_response__multiple_object_entities(self):
-        """Verify that outcome with multiple object entities fails.
-        """
-        self.parsed_data['outcomes'][0]['entities']['pickle'] = [{'type': 'value', 'value': 'dill'}]
-        self.assertRaisesRegexp(ValueError,
-                                'Found multiple object entities: ',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_from_wit_response__zero_object_entities(self):
-        """Verify that outcome with no entities fails.
-        """
-        del self.parsed_data['outcomes'][0]['entities']['species']
-        self.assertRaisesRegexp(ValueError,
-                                'No object entity found',
-                                ParsedSentence.from_wit_response,
-                                self.parsed_data)
-
-    def test_filter_entity_values(self):
-        """Verify behavior of filter_entity_values.
-        """
-        # Set up mocks and test data
-        value_entities = [{'type': 'value', 'value': 'foo'}, {'type': 'value', 'value': 'bar'}]
-        suggested_entities = [{'type': 'value', 'value': 'maybe foo', 'suggested': True}, 
-                              {'type': 'value', 'value': 'maybe bar', 'suggested': True}]
-        other_entities = [{'type': 'whatever'}, {'type': 'whoever'}]
-        test_data = [suggested_entities[0], 
-                     value_entities[0], 
-                     other_entities[0],
-                     value_entities[1],
-                     other_entities[1],
-                     suggested_entities[1]]
-        
-        # Make call
-        v, s = ParsedSentence._filter_entity_values(test_data)
-        
-        # Verify results
-        self.assertEqual([e['value'] for e in value_entities], v)
-        self.assertEqual([e['value'] for e in suggested_entities], s)
-        
-    def test_filter_entity_values__empty_data(self):
-        """Verify behavior of filter_entity_values when empty data is supplied.
-        """
-        for empty in (None, []):
-            self.assertEqual(([], []), ParsedSentence._filter_entity_values(empty))
-        

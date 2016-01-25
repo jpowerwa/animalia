@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-Go through training data csv, inserting appropriate Concepts and Relationships into database.
+Go through training data csv, inserting appropriate Concepts and Relationships into database
+using FactManager.
+
+See training_data/animalia.csv for example of training data
+
 """
 
 from __future__ import unicode_literals
@@ -11,7 +15,7 @@ import argparse
 import csv
 import logging
 
-from animalia import fact_manager
+from animalia import fact_manager, exc
 
 ch = logging.StreamHandler()
 ch.setFormatter(logging.Formatter(fmt='%(name)s [%(levelname)s] %(message)s'))
@@ -68,7 +72,7 @@ def add_concept(concept_name, concept_type):
     try:
         fact_manager.FactManager.add_concept(concept_name, concept_type)
         logger.info("Added concept '{0}' with type '{1}'".format(concept_name, concept_type))
-    except fact_manager.IncomingDataError as ex:
+    except exc.IncomingDataError as ex:
         logger.error("Failed to add concept '{0}' with type '{1}': {2}".format(
                 concept_name, concept_type, ex))
 
@@ -77,7 +81,7 @@ def add_sentence(sentence):
     try:
         fact = fact_manager.FactManager.fact_from_sentence(sentence)
         logger.info("Added sentence '{0}' (fact_id={1})".format(sentence, fact.fact_id))
-    except fact_manager.IncomingDataError as ex:
+    except exc.IncomingDataError as ex:
         logger.error("Failed to add sentence '{0}': {1}".format(sentence, ex))
     return fact
 

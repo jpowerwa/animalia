@@ -15,7 +15,8 @@ import logging
 import mock
 
 from animalia import app
-from animalia.fact_manager import FactManager, IncomingDataError
+from animalia.exc import IncomingDataError
+from animalia.fact_manager import FactManager
 
 
 class FactManagerTests(unittest.TestCase):
