@@ -1,0 +1,16 @@
+body {
+  padding: 20px;
+  background-color: #ddd;
+}
+ 
+form {
+  max-width: 400px;
+  padding-top: 15px;
+}
+
+form .form-control {
+  position: relative;
+  height: auto;
+  padding: 10px;
+  font-size: 16px;
+}

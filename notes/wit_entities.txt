@@ -1,0 +1,49 @@
+{
+  "id" : "56300743-c8d5-4f39-a0bb-ae64147c0fb9",
+  "name" : "relationship",
+  "doc" : "User-defined entity",
+  "builtin" : false,
+  "values" : [ {
+    "value" : "where",
+    "expressions" : [ "where" ]
+  }, {
+    "value" : "in",
+    "expressions" : [ "in" ]
+  }, {
+    "value" : "live",
+    "expressions" : [ "live" ]
+  }, {
+    "value" : "eat",
+    "expressions" : [ "eat" ]
+  }, {
+    "value" : "has",
+    "expressions" : [ "has" ]
+  }, {
+    "value" : "eats",
+    "expressions" : [ "eats" ]
+  }, {
+    "value" : "live in",
+    "expressions" : [ "live in" ]
+  }, {
+    "value" : "is",
+    "expressions" : [ "is" ]
+  }, {
+    "value" : "lives in",
+    "expressions" : [ "lives in" ]
+  }, {
+    "value" : "have",
+    "expressions" : [ "have" ]
+  }, {
+    "value" : "are",
+    "expressions" : [ "are" ]
+  }, {
+    "value" : "drink",
+    "expressions" : [ "drink" ]
+  }, {
+    "value" : "is a",
+    "expressions" : [ "is a" ]
+  } ],
+  "exotic" : false,
+  "closed" : false,
+  "lang" : "en"
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+
+<script src="../static/jquery.min.js"></script>
+<script src="../static/fact.js"></script>
+
+<html lang="en">
+  <head>
+    <title>Animalia App</title>
+ 
+    <link href="../static/bootstrap.min.css" rel="stylesheet">
+    <link href="../static/fact.css" rel="stylesheet">
+    
+  </head>
+ 
+  <body>
+ 
+      <div>
+        <h1>Animalia</h1>
+        <form class="form-inline" id="form_add_fact">
+          <input type="name" 
+                 id="input_fact" 
+                 name="fact"
+                 placeholder="the otter lives in the river" 
+                 class="form-control" 
+                 autofocus>
+          <button id="btn_add_fact" class="btn btn-primary" type="button">Add fact</button>
+      </form>
+
+      <form class="form-inline" id="form_ask_question">
+        <input type="name" 
+               id="input_question" 
+               name="question" 
+               placeholder="where does the otter live?"
+               class="form-control">
+        <button id="btn_ask_question" class="btn btn-primary" type="button">Ask question</button>
+      </form>
+
+      <form class="form-inline" id="form_get_fact">
+        <input type="name" 
+               id="input_get_fact_id" 
+               name="fact_id" 
+               placeholder="<fact_id>"
+               class="form-control">
+        <button id="btn_get_fact" class="btn btn-primary" type="button">Get fact</button>
+      </form>
+
+      <form class="form-inline" id="form_delete_fact">
+        <input type="name" 
+               id="input_delete_fact_id" 
+               name="fact_id" 
+               placeholder="<fact_id>"
+               class="form-control">
+        <button id="btn_delete_fact" class="btn btn-primary" type="button">Delete fact</button>
+      </form>
+
+
+      </div>
+ 
+    </div>
+  </body>
+</html>
+
+<script>
+
+$(function() {
+    $('#btn_add_fact').click(function() {
+        addFact('form_add_fact');
+    });
+});
+
+$(function() {
+    $('#btn_ask_question').click(function() {
+        askQuestion('form_ask_question')
+    });
+});
+
+$(function() {
+    $('#btn_get_fact').click(function() {
+        getFact('form_get_fact');
+    });
+});
+
+$(function() {
+    $('#btn_delete_fact').click(function() {
+        deleteFact('form_delete_fact');
+    });
+});
+
+
+
+</script>

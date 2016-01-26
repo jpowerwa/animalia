@@ -1,14 +1,13 @@
 concept,type,lives,has body part,has fur,has scales,eats,parent species,leg count
-bear,animal,forest:meadow,leg:tail,TRUE,FALSE,berries:insects:fish,mammal,4
+bear,animal,forest:meadow,leg:tail,TRUE,FALSE,berries:insects:salmon,mammal,4
 deer,animal,forest:meadow,leg:tail,TRUE,FALSE,grass,mammal,4
 skunk,animal,forest:meadow,Leg:tail,TRUE,FALSE,berries:insects,mammal,4
-gecko,animal,tree,Leg:tail,FALSE,TRUE,insects,mammal,4
-heron,animal,river:ocean,Leg:tail,FALSE,FALSE,fish:herring,bird,2
-cormorant,animal,ocean,Leg:tail,FALSE,FALSE,fish:herring,bird,2
+gecko,animal,tree,Leg:tail,FALSE,TRUE,insects,reptile,4
+heron,animal,river:ocean,Leg:tail:wings,FALSE,FALSE,fish:herring,bird,2
 herring,animal,ocean,tail,FALSE,TRUE,insects,fish,0
 salmon,animal,river:ocean,tail,FALSE,TRUE,insects,fish,0
 otter,animal,river:ocean,leg:tail,TRUE,FALSE,salmon:herring:fish,mammal,4
-bee,animal,meadow,leg:stinger,TRUE,FALSE,nectar,insects,6
+bee,animal,meadow,leg:stinger:wings,TRUE,FALSE,nectar,insects,6
 spider,animal,forest:meadow:web,leg,FALSE,FALSE,insects,arachnid,8
 coyote,animal,forest:meadow,leg:tail,TRUE,FALSE,berries:insects:fish:otter:gecko:skunk,mammal,4
 berries,food,,,,,,,
