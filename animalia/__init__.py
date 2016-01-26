@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
+"""Flask animalia application.
+
+Implements API described in README.md.
+
 """
 
 from __future__ import unicode_literals
@@ -19,13 +22,12 @@ app = flask.Flask(__name__)
 # Init logging
 import logging
 
-app.logger.setLevel(logging.DEBUG)
+app.logger.setLevel(logging.INFO)
 logger = app.logger
 
-
 # Import after app has been created
-from fact_manager import FactManager, IncomingDataError
-
+from fact_manager import FactManager
+from exc import IncomingDataError
 
 @app.route("/")
 def main():
@@ -33,6 +35,18 @@ def main():
 
 @app.route('/animals/facts/<fact_id>', methods=['DELETE'])
 def delete_fact(fact_id):
+    """Delete fact with specified id.
+
+    Success response: 200 OK
+    Response body: {'id': <UUID>}
+
+    If no such fact exists, response is 404 Not Found.
+
+    When a fact is deleted then the information it represents about animals is no longer 
+    available to the service and the service must stop answering questions with information 
+    from the fact.
+    
+    """
     response_data = None
     response_code = status.HTTP_200_OK
     try:
@@ -52,6 +66,14 @@ def delete_fact(fact_id):
 
 @app.route('/animals/facts/<fact_id>', methods=['GET'])
 def get_fact(fact_id):
+    """Retrieve fact with specified id.
+
+    Success response: 200 OK
+    Response body: {'fact': <sentence>}
+    
+    If no such fact exists, response is 404 Not Found.
+
+    """
     response_data = None
     response_code = status.HTTP_200_OK
     try:
@@ -71,6 +93,20 @@ def get_fact(fact_id):
     
 @app.route('/animals/facts', methods=['POST'])
 def post_fact():
+    """Add fact represented by sentence.
+    
+    Request body: {'fact': <sentence>}
+    Sentence should be phrased like 'otters live in rivers'
+
+    Success response: 200 OK
+    Response body: {'id': <UUID>}
+
+    Error response: 400 Bad Request
+    Response body: {'message': <error message>}
+
+    Submitting an already existing fact returns the identifier of the original fact.
+
+    """
     response_data = None
     response_code = status.HTTP_200_OK
     req_data = flask.request.json
@@ -91,6 +127,26 @@ def post_fact():
 
 @app.route('/animals', methods=['GET'])
 def query_facts():
+    """Respond to question about semantic relationships of animals.
+
+    A query is submitted as a sentence in specific form that follows one of the following patterns:
+      "Where do otters live?"
+      "How many legs does the otter have"?
+      "Which animals have 4 legs?"
+      "How many animals are mammals?"
+
+    Query sentence is specified as query string arg named 'q'.
+
+    Success response: 200 OK
+    Response body: {'fact': <answer>}
+
+    If no response is found, response is 404 Not Found.
+    Response body: {'message': <error>}
+    { "message": "I can't answer your question." }
+
+    If request is malformed, response is 400 Bad Request.
+
+    """
     response_data = None
     response_code = status.HTTP_200_OK
     question = flask.request.args.get('q')

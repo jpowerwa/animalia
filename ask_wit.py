@@ -2,12 +2,20 @@
 # -*- coding: utf-8 -*-
 
 """
-How many animals have fins?
-Which animals eat berries?
-Which animals eat mammals?
-How many animals do not eat berries?
-Does a bear have scales?
-Do mammals live in the ocean?
+Submit query to wit.ai for interpretation and present response.
+
+Examples:
+  How many animals have tails?
+  Which animals eat berries?
+  Which animals do not eat berries?
+  How many animals do not eat berries?
+  Which animals eat mammals?
+  Does a bear have scales?
+  Does a bear have fur?
+  Do mammals live in the ocean?
+  What do coyotes eat?
+  Where does a salmon live?
+
 """
 
 from __future__ import unicode_literals
@@ -34,7 +42,6 @@ def parse_args():
 def query_wit(query):
     response = wit.text_query(query, Config.wit_access_token)
     print('Response: {}'.format(response))
-
 
 
 if __name__ == "__main__":

@@ -42,13 +42,14 @@ class FactQuery(object):
 
     # private methods
 
-    def _bool_as_str(self, val):
+    @staticmethod
+    def _bool_as_str(val):
         """Tranform provided boolean value into 'yes' or 'no'.
-
         """
         return 'yes' if val else 'no'
 
-    def _concept_is_species(self, concept_name):
+    @classmethod
+    def _concept_is_species(cls, concept_name):
         """Determine if specified concept is a species or not.
 
         :rtype: bool
@@ -58,14 +59,15 @@ class FactQuery(object):
         :arg concept_name: name of concept
 
         """
-        matches = self._select_matching_relationships(
+        matches = cls._select_matching_relationships(
             'is', 
-            subject_name=self._get_synonymous_names(concept_name),
+            subject_name=cls._get_synonymous_names(concept_name),
             object_name='species',
             stop_on_match=True)
         return bool(matches)
 
-    def _filter_relationships_by_concept_type(self, matches, concept_types=None, 
+    @classmethod
+    def _filter_relationships_by_concept_type(cls, matches, concept_types=None, 
                                               relationship_attr=None):
         """Filter relationships by concept_type on attr_name.
         
@@ -109,7 +111,8 @@ class FactQuery(object):
         fn_name = '_{0}_query'.format(intent_base)
         return getattr(self, fn_name, None)
 
-    def _get_synonymous_names(self, orig_name):
+    @classmethod
+    def _get_synonymous_names(cls, orig_name):
         """Generate singular and plural versions of specified species or animal name.
 
         This is a naive implementation and incorrect for certain concepts, i.e.
@@ -130,7 +133,8 @@ class FactQuery(object):
             names.append(orig_name + 's')
         return sorted(names)
 
-    def _select_by_concept_type(self, concept_types):
+    @classmethod
+    def _select_by_concept_type(cls, concept_types):
         """Select all concepts that have 'is' relationship to one of specified concept_types.
 
         :rtype: [:py:class:`fact_model.Concept`]
@@ -140,10 +144,11 @@ class FactQuery(object):
         :arg concept_types: concept_types to filter on
 
         """
-        matches = self._select_matching_relationships('is', object_name=concept_types)
+        matches = cls._select_matching_relationships('is', object_name=concept_types)
         return [m.subject for m in matches]
 
-    def _select_matching_relationships(self, relationship_type_name, relationship_number=None,
+    @classmethod
+    def _select_matching_relationships(cls, relationship_type_name, relationship_number=None,
                                        subject_name=None, object_name=None, stop_on_match=False):
         """Wrapper around fact_model.Relationship.select_by_values.
 
@@ -209,11 +214,8 @@ class FactQuery(object):
         Examples: 
           Do herons have legs?
           Does a heron have four legs?
-          Does a heron have two legs?
           Do spiders live in webs?
-          Do spiders live in rivers?
           Do spiders eat insects?
-          Do spiders eat otters?
           Do otters have fur?
           Do otters have scales?
           Do mammals have fur?
@@ -432,7 +434,6 @@ class FactQuery(object):
           Which animals do not have fur?
           Which animals have four legs?
           Which animals do not have four legs?
-          Which animals eat mammals?
 
         :rtype: [unicode, ...]
         :return: list of animals that meet specified criteria
@@ -467,7 +468,7 @@ class FactQuery(object):
                     concept_types=self._get_synonymous_names(self.parsed_query.object_name), 
                     relationship_attr='object'))
 
-        # Filter results by concept_type of subject, i.e. 'animal' or particular species
+        # # Filter results by concept_type of subject, i.e. 'animal' or particular species
         concept_types = ['animal']
         if self._concept_is_species(self.parsed_query.subject_name):
             concept_types = self._get_synonymous_names(self.parsed_query.subject_name)
