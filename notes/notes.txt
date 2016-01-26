@@ -66,14 +66,20 @@ day 12 (more than a week later)
 goal: fact query logic
 update ParsedSentence to better handle query sentences
 
-day 13
+day 13 
 goal: fact query logic
 inital pass at fact query logic complete, not tested
+
+days 14,15 (more than a week later)
+debug and test fact query logic
+
+day 16 
+finish testing. cleanup.
 
 
 points of confusion
 1. wit.ai: hard to find description of its general model; confusing that demo emphasis is on voice; would be nice to see set of intents defined in trained wit application.
 2. animalia_data.csv: what is this for? To use to generate sentences to submit to my implementation of the animal fact api? To seed the database? Looks like a dump of a database used by the animalia app. Confusing but informative: insect is listed as species but in data it is food and species. Ended up being a great resource for determining the animalia data model. Example shows "bear" included in answer to "Which animals eat mammals, but this is not represented in the training data."
-3: If set_animal_fact is called with sentence that results in same fact as another sentence, return new id or original fact id? A: original fact id. Note: be careful when deleting facts. If any submitted fact is still around, do not delete data.
+3: If set_animal_fact is called with sentence that results in same fact as another sentence, return new id or original fact id? A: Detect fact duplication and do not store duplicate fact. Avoids issue with deleting facts and requirement that if any duplicate fact exists, fact relationships should not be deleted.
 
 
