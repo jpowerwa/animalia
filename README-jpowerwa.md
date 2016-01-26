@@ -14,7 +14,7 @@ Fixing the above implementation detail would probably be required for this solut
 ### Preparation
 
 1. create virtualenv
-2. git clone 
+2. git clone git@github.com:/jpowerwa/animalia
 3. start virtualenv
 4. sudo apt-get install libsox-dev
 5. pip install wit, flask, flask-mysql, flask-sqlalchemy, flask-api, mock
