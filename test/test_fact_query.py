@@ -118,36 +118,22 @@ class FactQueryTests(unittest.TestCase):
         fn = fact_query._find_answer_function()
         self.assertEqual(fn, fact_query._animal_attribute_query)
 
-    def test_get_synonymous_names(self):
-        """Verify logic of get_synonymous_name with singular name.
-        """
-        names = FactQuery._get_synonymous_names('mammal')
-        self.assertEqual(['mammal', 'mammals'], names)
-
-    def test_get_synonymous_names__plural(self):
-        """Verify logic of get_synonymous_names with plural name.
-        """
-        names = FactQuery._get_synonymous_names('mammals')
-        self.assertEqual(['mammal', 'mammals'], names)
-
     @patch.object(FactQuery, '_select_matching_relationships')
     def test_concept_is_species(self, select_relationships):
         """Verify calls made by _concept_is_species.
         """
         select_relationships.return_value = mock_matches = Mock(name='matches')
-        result = FactQuery._concept_is_species('bird')
+        result = FactQuery._concept_is_species('birds')
         self.assertTrue(result)
-        select_relationships.assert_called_once_with('is',
-                                                     subject_name=['bird', 'birds'],
-                                                     object_name='species',
-                                                     stop_on_match=True)
+        select_relationships.assert_called_once_with(
+            'is', subject_name='birds', object_name='species')
 
     @patch.object(FactQuery, '_select_matching_relationships')
     def test_concept_is_species__fail(self, select_relationships):
         """Verify _concept_is_species when no matches are found
         """
         select_relationships.return_value = []
-        result = FactQuery._concept_is_species('bird')
+        result = FactQuery._concept_is_species('birds')
         self.assertFalse(result)
 
     @patch.object(FactQuery, '_select_matching_relationships')
@@ -155,11 +141,11 @@ class FactQueryTests(unittest.TestCase):
         """Verify calls made by select_by_concept_type.
         """
         select_relationships.return_value = [Mock(subject='hello'), Mock(subject='kitty')]
-        mock_concept_types = Mock(name='concept_types')
+        mock_concept_type = Mock(name='concept_type')
 
-        result = FactQuery._select_by_concept_type(mock_concept_types)
+        result = FactQuery._select_by_concept_type(mock_concept_type)
         self.assertEqual(['hello', 'kitty'], result)
-        select_relationships.assert_called_once_with('is', object_name=mock_concept_types)
+        select_relationships.assert_called_once_with('is', object_name=mock_concept_type)
 
     @patch.object(FactQuery, '_select_matching_relationships')
     def test_select_by_concept_type__no_matches(self, select_relationships):
@@ -198,173 +184,6 @@ class SelectMatchingRelationshipTests(unittest.TestCase):
                                                  object_name=test_object_name,
                                                  relationship_number=test_rel_number)
 
-    @patch.object(fact_model.Relationship, 'select_by_values')
-    def test_select_matching_relationships__multiple_subs__one_obj(self, select_by_values):
-        """Verify calls made by _select_matching_relationships for multiple subjects.
-        """
-        # Set up mocks and test data
-        select_by_values.side_effect = [['one', 'two'], ['three']]
-        test_relationship_type_name = 'eats'
-        test_subject_names = ['otter', 'otters']
-        test_object_name = 'mussels'
-        
-        # Make call
-        matches = FactQuery._select_matching_relationships(test_relationship_type_name,
-                                                           subject_name=test_subject_names,
-                                                           object_name=test_object_name)
-        # Verify result
-        self.assertEqual(['one', 'two', 'three'], matches)
-
-        # Verify mocks
-        call_args_list = select_by_values.call_args_list
-        self.assertEqual(2, len(call_args_list))
-        for i, call_args in enumerate(call_args_list):
-            expected_call = call(relationship_type_name='eats',
-                                 relationship_number=None,
-                                 subject_name=test_subject_names[i],
-                                 object_name=test_object_name)
-            self.assertEqual(expected_call, call_args)
-
-    @patch.object(fact_model.Relationship, 'select_by_values')
-    def test_select_matching_relationships__multiple_subs__no_obj(self, select_by_values):
-        """Verify calls made by _select_matching_relationships for multiple subjects and no object.
-        """
-        # Set up mocks and test data
-        select_by_values.side_effect = [['one', 'two'], ['three']]
-        test_relationship_type_name = 'eats'
-        test_subject_names = ['otter', 'otters']
-        
-        # Make call
-        matches = FactQuery._select_matching_relationships(test_relationship_type_name,
-                                                           subject_name=test_subject_names)
-        # Verify result
-        self.assertEqual(['one', 'two', 'three'], matches)
-
-        # Verify mocks
-        call_args_list = select_by_values.call_args_list
-        self.assertEqual(2, len(call_args_list))
-        for i, call_args in enumerate(call_args_list):
-            expected_call = call(relationship_type_name='eats',
-                                 relationship_number=None,
-                                 subject_name=test_subject_names[i],
-                                 object_name=None)
-            self.assertEqual(expected_call, call_args)
-
-    @patch.object(fact_model.Relationship, 'select_by_values')
-    def test_select_matching_relationships__multiple_objs__one_sub(self, select_by_values):
-        """Verify calls made by _select_matching_relationships for multiple objects.
-        """
-        # Set up mocks and test data
-        select_by_values.side_effect = [['one', 'two'], ['three']]
-        test_relationship_type_name = 'eats'
-        test_subject_name = 'otter'
-        test_object_names = ['mussel', 'mussels']
-        
-        # Make call
-        matches = FactQuery._select_matching_relationships(test_relationship_type_name,
-                                                           subject_name=test_subject_name,
-                                                           object_name=test_object_names)
-        # Verify result
-        self.assertEqual(['one', 'two', 'three'], matches)
-
-        # Verify mocks
-        call_args_list = select_by_values.call_args_list
-        self.assertEqual(2, len(call_args_list))
-        for i, call_args in enumerate(call_args_list):
-            expected_call = call(relationship_type_name='eats',
-                                 relationship_number=None,
-                                 subject_name=test_subject_name,
-                                 object_name=test_object_names[i])
-            self.assertEqual(expected_call, call_args)
-
-    @patch.object(fact_model.Relationship, 'select_by_values')
-    def test_select_matching_relationships__multiple_objs__no_sub(self, select_by_values):
-        """Verify calls made by _select_matching_relationships for multiple objs and no subject.
-        """
-        # Set up mocks and test data
-        select_by_values.side_effect = [['one', 'two'], ['three']]
-        test_relationship_type_name = 'eats'
-        test_object_names = ['mussel', 'mussels']
-        
-        # Make call
-        matches = FactQuery._select_matching_relationships(test_relationship_type_name,
-                                                           object_name=test_object_names)
-        # Verify result
-        self.assertEqual(['one', 'two', 'three'], matches)
-
-        # Verify mocks
-        call_args_list = select_by_values.call_args_list
-        self.assertEqual(2, len(call_args_list))
-        for i, call_args in enumerate(call_args_list):
-            expected_call = call(relationship_type_name='eats',
-                                 relationship_number=None,
-                                 subject_name=None,
-                                 object_name=test_object_names[i])
-            self.assertEqual(expected_call, call_args)
-
-    @patch.object(fact_model.Relationship, 'select_by_values')
-    def test_select_matching_relationships__multiple_subs__multiple_objs(self, select_by_values):
-        """Verify calls made by _select_matching_relationships for multiple subs and objs
-        """
-        # Set up mocks and test data
-        select_by_values.side_effect = [['one', 'two'], ['three'], ['four'], ['five', 'six']]
-        test_relationship_type_name = 'eats'
-        test_subject_names = ['otter', 'otters']
-        test_object_names = ['mussel', 'mussels']
-        
-        # Make call
-        matches = FactQuery._select_matching_relationships(test_relationship_type_name,
-                                                           subject_name=test_subject_names,
-                                                           object_name=test_object_names)
-        # Verify result
-        self.assertEqual(['one', 'two', 'three', 'four', 'five', 'six'], matches)
-
-        # Verify mocks
-        call_args_list = select_by_values.call_args_list
-        self.assertEqual(4, len(call_args_list))
-        i = 0
-        for subj_idx in range(0,1):
-            for obj_idx in range (0,1):
-                call_args = call_args_list[i]
-                expected_call = call(relationship_type_name='eats',
-                                     relationship_number=None,
-                                     subject_name=test_subject_names[subj_idx],
-                                     object_name=test_object_names[obj_idx])
-                self.assertEqual(expected_call, call_args)
-                i += 1
-
-    @patch.object(fact_model.Relationship, 'select_by_values')
-    def test_select_matching_relationships__multiple_subs__stop_on_match(self, select_by_values):
-        """Verify calls made by _select_matching_relationships when stop_on_match is True
-        """
-        # Set up mocks and test data
-        select_by_values.side_effect = [[], [], ['one', 'two']]
-        test_relationship_type_name = 'eats'
-        test_subject_names = ['otter', 'otters']
-        test_object_names = ['mussels', 'mussel']
-        
-        # Make call
-        matches = FactQuery._select_matching_relationships(test_relationship_type_name,
-                                                           subject_name=test_subject_names,
-                                                           object_name=test_object_names,
-                                                           stop_on_match=True)
-        # Verify result
-        self.assertEqual(['one', 'two'], matches)
-
-        # Verify mocks
-        call_args_list = select_by_values.call_args_list
-        self.assertEqual(3, len(call_args_list))
-        i = 0
-        for subj_idx in range(0,1):
-            obj_idx = 0
-            call_args = call_args_list[i]
-            expected_call = call(relationship_type_name='eats',
-                                 relationship_number=None,
-                                 subject_name=test_subject_names[subj_idx],
-                                 object_name=test_object_names[obj_idx])
-            self.assertEqual(expected_call, call_args)
-            i += 1
-
 
 class FilterRelationshipsByConceptTypeTests(unittest.TestCase):
     """Verify methods having to do with filtering subjects and objects by species.
@@ -373,27 +192,27 @@ class FilterRelationshipsByConceptTypeTests(unittest.TestCase):
         """Verify calls made by _filter_relationships_by_concept_type for 'subject' attr.
         """
         # Set up mocks and test data
-        concept_types = ['bird', 'birds']
+        concept_type = 'birds'
         mock_match_0 = Mock(name='mock_match_0',
                             subject=Mock(name='mock_subject_0',
                                          concept_name='mock_subject_0',
-                                         concept_types=['bird', 'not_bird']))
+                                         concept_types=['birds', 'snakes']))
 
         mock_match_1 = Mock(name='mock_match_1',
                             subject=Mock(name='mock_subject_1',
                                          concept_name='mock_subject_1',
-                                         concept_types=['not_bird', 'also_not_bird']))
+                                         concept_types=['snakes', 'turtles']))
 
         mock_match_2 = Mock(name='mock_match_2',
                             subject=Mock(name='mock_subject_2',
                                          concept_name='mock_subject_2',
-                                         concept_types=['not_bird', 'birds']))
+                                         concept_types=['snakes', 'birds']))
 
         mock_matches = [mock_match_0, mock_match_1, mock_match_2]
 
         # Make call
         filtered_matches = FactQuery._filter_relationships_by_concept_type(
-            mock_matches, concept_types=concept_types, relationship_attr='subject')
+            mock_matches, concept_type, relationship_attr='subject')
 
         # Verify results
         self.assertEqual([mock_match_0, mock_match_2], filtered_matches)
@@ -402,27 +221,27 @@ class FilterRelationshipsByConceptTypeTests(unittest.TestCase):
         """Verify calls made by _filter_relationships_by_concept_type for 'object' attr.
         """
         # Set up mocks and test data
-        concept_types = ['bird', 'birds']
+        concept_type = 'birds'
         mock_match_0 = Mock(name='mock_match_0',
                             object=Mock(name='mock_subject_0',
                                         concept_name='mock_subject_0',
-                                        concept_types=['bird', 'not_bird']))
+                                        concept_types=['birds', 'snakes']))
 
         mock_match_1 = Mock(name='mock_match_1',
                             object=Mock(name='mock_subject_1',
                                         concept_name='mock_subject_1',
-                                        concept_types=['not_bird', 'also_not_bird']))
+                                        concept_types=['snakes', 'turtles']))
 
         mock_match_2 = Mock(name='mock_match_2',
                             object=Mock(name='mock_subject_2',
                                         concept_name='mock_subject_2',
-                                        concept_types=['not_bird', 'birds']))
+                                        concept_types=['snakes', 'birds']))
 
         mock_matches = [mock_match_0, mock_match_1, mock_match_2]
 
         # Make call
         filtered_matches = FactQuery._filter_relationships_by_concept_type(
-            mock_matches, concept_types=concept_types, relationship_attr='object')
+            mock_matches, concept_type, relationship_attr='object')
 
         # Verify results
         self.assertEqual([mock_match_0, mock_match_2], filtered_matches)
@@ -453,10 +272,9 @@ class AnimalAttributeQueryTests(unittest.TestCase):
 
         # Verify mocks
         select_relationships.assert_called_once_with('have',
-                                                     subject_name=['heron', 'herons'],
-                                                     object_name=['wing', 'wings'],
-                                                     relationship_number=2,
-                                                     stop_on_match=True)
+                                                     subject_name='herons',
+                                                     object_name='wings',
+                                                     relationship_number=2)
 
     @patch.object(FactQuery, '_concept_is_species')
     @patch.object(FactQuery, '_select_matching_relationships')
@@ -482,10 +300,9 @@ class AnimalAttributeQueryTests(unittest.TestCase):
 
         # Verify mocks
         select_relationships.assert_called_once_with('have',
-                                                     subject_name=['heron', 'herons'],
-                                                     object_name=['wing', 'wings'],
-                                                     relationship_number=2,
-                                                     stop_on_match=True)
+                                                     subject_name='herons',
+                                                     object_name='wings',
+                                                     relationship_number=2)
 
     @patch.object(FactQuery, '_filter_relationships_by_concept_type')
     @patch.object(FactQuery, '_concept_is_species')
@@ -520,9 +337,8 @@ class AnimalAttributeQueryTests(unittest.TestCase):
         call_args_list = select_relationships.call_args_list
         self.assertEqual(2, len(call_args_list))
         expected_calls = [
-            call('have', subject_name=['bird', 'birds'], object_name=['wing', 'wings'],
-                 relationship_number=2, stop_on_match=True),
-            call('have', object_name=['wing', 'wings'], relationship_number=2, stop_on_match=True)]
+            call('have', subject_name='birds', object_name='wings', relationship_number=2),
+            call('have', object_name='wings', relationship_number=2)]
         self.assertEqual(expected_calls, call_args_list)
 
     @patch.object(FactQuery, '_filter_relationships_by_concept_type')
@@ -558,9 +374,8 @@ class AnimalAttributeQueryTests(unittest.TestCase):
         call_args_list = select_relationships.call_args_list
         self.assertEqual(2, len(call_args_list))
         expected_calls = [
-            call('eat', subject_name=['heron', 'herons'], object_name=['mammal', 'mammals'],
-                 relationship_number=2, stop_on_match=True),
-            call('eat', subject_name=['heron', 'herons'], relationship_number=2, stop_on_match=True)]
+            call('eat', subject_name='herons', object_name='mammals', relationship_number=2),
+            call('eat', subject_name='herons', relationship_number=2)]
         self.assertEqual(expected_calls, call_args_list)
 
 
@@ -582,14 +397,14 @@ class AnimalValuesQueryTests(unittest.TestCase):
         fact_query = FactQuery()
 
         # Make call
-        result = fact_query._animal_values_query(relationship_type_name='eat', subject_name='frog')
+        result = fact_query._animal_values_query(relationship_type_name='eat', subject_name='frogs')
 
         # Verify result
         self.assertEqual(['flies', 'mosquitoes'], result)
 
         # Verify mocks
-        concept_is_species.assert_called_once_with('frog')
-        select_relationships.assert_called_once_with('eat', subject_name=['frog', 'frogs'])
+        concept_is_species.assert_called_once_with('frogs')
+        select_relationships.assert_called_once_with('eat', subject_name='frogs')
 
     @patch.object(FactQuery, '_filter_relationships_by_concept_type')
     @patch.object(FactQuery, '_concept_is_species')
@@ -608,7 +423,8 @@ class AnimalValuesQueryTests(unittest.TestCase):
         fact_query = FactQuery()
 
         # Make call
-        result = fact_query._animal_values_query(relationship_type_name='eat', subject_name='reptiles')
+        result = fact_query._animal_values_query(
+            relationship_type_name='eat', subject_name='reptiles')
 
         # Verify result
         self.assertEqual(['flies', 'mosquitoes'], result)
@@ -617,7 +433,7 @@ class AnimalValuesQueryTests(unittest.TestCase):
         concept_is_species.assert_called_once_with('reptiles')
         select_relationships.assert_called_once_with('eat')
         filter_by_concept_type.assert_called_once_with(
-            [mock_1, mock_2, mock_3], concept_types=['reptile', 'reptiles'], relationship_attr='subject')
+            [mock_1, mock_2, mock_3], 'reptiles', relationship_attr='subject')
 
 
 class WhichAnimalQueryTests(unittest.TestCase):
@@ -656,7 +472,7 @@ class WhichAnimalQueryTests(unittest.TestCase):
 
         # Verify mocks
         select_relationships.assert_called_once_with(
-            'eat', object_name=['bug', 'bugs'], relationship_number=3)
+            'eat', object_name='bugs', relationship_number=3)
 
         call_args_list = concept_is_species.call_args_list
         self.assertEqual(2, len(call_args_list))
@@ -664,7 +480,7 @@ class WhichAnimalQueryTests(unittest.TestCase):
         self.assertEqual(call('animals'), call_args_list[1])
 
         filter_by_concept_type.assert_called_once_with(
-            [mock_match_1, mock_match_2], concept_types=['animal'], relationship_attr='subject')
+            [mock_match_1, mock_match_2], 'animals', relationship_attr='subject')
         
     @patch.object(FactQuery, '_select_by_concept_type')
     @patch.object(FactQuery, '_filter_relationships_by_concept_type')
@@ -703,7 +519,7 @@ class WhichAnimalQueryTests(unittest.TestCase):
         self.assertEqual(set(['subject_3', 'subject_4']), set(results))
 
         # Verify mocks
-        select_by_concept_type.assert_called_once_with(['animal'])
+        select_by_concept_type.assert_called_once_with('animals')
 
     @patch.object(FactQuery, '_filter_relationships_by_concept_type')
     @patch.object(FactQuery, '_concept_is_species')
@@ -738,7 +554,7 @@ class WhichAnimalQueryTests(unittest.TestCase):
 
         # Verify mocks
         select_relationships.assert_called_once_with(
-            'eat', object_name=['bug', 'bugs'], relationship_number=3)
+            'eat', object_name='bugs', relationship_number=3)
 
         call_args_list = concept_is_species.call_args_list
         self.assertEqual(2, len(call_args_list))
@@ -746,9 +562,7 @@ class WhichAnimalQueryTests(unittest.TestCase):
         self.assertEqual(call('reptiles'), call_args_list[1])
 
         filter_by_concept_type.assert_called_once_with(
-            [mock_match_1, mock_match_2], 
-            concept_types=['reptile', 'reptiles'], 
-            relationship_attr='subject')
+            [mock_match_1, mock_match_2], 'reptiles', relationship_attr='subject')
 
     @patch.object(FactQuery, '_filter_relationships_by_concept_type')
     @patch.object(FactQuery, '_concept_is_species')
@@ -790,7 +604,7 @@ class WhichAnimalQueryTests(unittest.TestCase):
         call_args_list = select_relationships.call_args_list
         self.assertEqual(2, len(call_args_list))
         expected_calls = [
-            call('eat', object_name=['reptile', 'reptiles'], relationship_number=3),
+            call('eat', object_name='reptiles', relationship_number=3),
             call('eat', relationship_number=3)]
         self.assertEqual(expected_calls, call_args_list)
 
@@ -803,11 +617,11 @@ class WhichAnimalQueryTests(unittest.TestCase):
         self.assertEqual(2, len(call_args_list))
         expected_calls = [
             call([mock_match_1, mock_match_3], 
-                 concept_types=['reptile', 'reptiles'], 
+                 'reptiles', 
                  relationship_attr='object'),
-             call([mock_match_1, mock_match_2, mock_match_1, mock_match_3],
-                  concept_types=['animal'],
-                  relationship_attr='subject')]
+            call([mock_match_1, mock_match_2, mock_match_1, mock_match_3],
+                 'animals',
+                 relationship_attr='subject')]
         self.assertEqual(expected_calls, call_args_list)
         
         
