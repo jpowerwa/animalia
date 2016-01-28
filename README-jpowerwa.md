@@ -4,10 +4,6 @@
 
 My goal was to build the animalia implementation with as little domain-specific knowledge as possible. Of the python code, only animalia.fact_query uses domain specific logic. The database schema and the animalia modules fact_manager and parsed_sentence are domain agnostic. 
 
-One implementation detail that I do not like is handling of singular and plural versions of nouns. First off, the logic to generate a singular and plural version of a noun is clearly flawed, but it suffices for now. Moreover, I do not like needing to do multiple queries to handle the singular and plural versions of concept names, as this results in extra database trips and queries. I would prefer to transform the concept names before adding records to the database. Since that is how I would optimize the code, I did not make the fact_model.Relationship.select_by_values method take lists of subject and object names, which would at least push the work onto the database.
-
-Fixing the above implementation detail would probably be required for this solution to be scalable.
-
 
 ## How to run animalia locally
 
@@ -17,7 +13,7 @@ Fixing the above implementation detail would probably be required for this solut
 2. git clone git@github.com:/jpowerwa/animalia
 3. start virtualenv
 4. sudo apt-get install libsox-dev
-5. pip install wit, flask, flask-mysql, flask-sqlalchemy, flask-api, mock
+5. pip install wit, flask, flask-mysql, flask-sqlalchemy, flask-api, inflect, mock
 6. start virtualenv
 7. if necessary, sudo apt-get install mysql-server, mysql-client
 8. in mysql, source sql/create_database.sql and sql/fact_model.sql

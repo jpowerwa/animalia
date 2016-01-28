@@ -33,9 +33,29 @@ class FromWitResponseTests(unittest.TestCase):
         self.assertEqual('the otter is a mammal', parsed_sentence.text)
         self.assertEqual(0.9, parsed_sentence.confidence)
         self.assertEqual('animal_species_fact', parsed_sentence.intent)
-        self.assertEqual('otter', parsed_sentence.subject_name)
-        self.assertEqual('animal', parsed_sentence.subject_type)
-        self.assertEqual('mammal', parsed_sentence.object_name)
+        self.assertEqual('otters', parsed_sentence.subject_name)
+        self.assertEqual('animals', parsed_sentence.subject_type)
+        self.assertEqual('mammals', parsed_sentence.object_name)
+        self.assertEqual('species', parsed_sentence.object_type)
+        self.assertEqual('is a', parsed_sentence.relationship_type_name)
+        self.assertIsNone(parsed_sentence.relationship_number)
+        self.assertFalse(parsed_sentence.relationship_negation)
+        self.assertEqual(json.dumps(self.parsed_data), parsed_sentence.orig_response)
+
+    def test_from_wit_response__normalize_concepts(self):
+        """Verify that concept names are normalized when wit_response is processed.
+        """
+        entities = self.parsed_data['outcomes'][0]['entities']
+        entities['animal'][0]['value'] = 'OTTER'
+        entities['species'][0]['value'] = 'MAMMAL'
+        parsed_sentence = ParsedSentence.from_wit_response(self.parsed_data)
+
+        self.assertEqual('the otter is a mammal', parsed_sentence.text)
+        self.assertEqual(0.9, parsed_sentence.confidence)
+        self.assertEqual('animal_species_fact', parsed_sentence.intent)
+        self.assertEqual('otters', parsed_sentence.subject_name)
+        self.assertEqual('animals', parsed_sentence.subject_type)
+        self.assertEqual('mammals', parsed_sentence.object_name)
         self.assertEqual('species', parsed_sentence.object_type)
         self.assertEqual('is a', parsed_sentence.relationship_type_name)
         self.assertIsNone(parsed_sentence.relationship_number)
@@ -50,10 +70,10 @@ class FromWitResponseTests(unittest.TestCase):
         self.assertEqual('the otter has four legs', parsed_sentence.text)
         self.assertEqual(0.994, parsed_sentence.confidence)
         self.assertEqual('animal_leg_fact', parsed_sentence.intent)
-        self.assertEqual('otter', parsed_sentence.subject_name)
-        self.assertEqual('animal', parsed_sentence.subject_type)
+        self.assertEqual('otters', parsed_sentence.subject_name)
+        self.assertEqual('animals', parsed_sentence.subject_type)
         self.assertEqual('legs', parsed_sentence.object_name)
-        self.assertEqual('body_part', parsed_sentence.object_type)
+        self.assertEqual('body_parts', parsed_sentence.object_type)
         self.assertEqual('has', parsed_sentence.relationship_type_name)
         self.assertEqual('4', parsed_sentence.relationship_number)
         self.assertFalse(parsed_sentence.relationship_negation)
@@ -68,9 +88,9 @@ class FromWitResponseTests(unittest.TestCase):
         self.assertEqual(0.998, parsed_sentence.confidence)
         self.assertEqual('which_animal_question', parsed_sentence.intent)
         self.assertEqual('animals', parsed_sentence.subject_name)
-        self.assertEqual('animal', parsed_sentence.subject_type)
+        self.assertEqual('animals', parsed_sentence.subject_type)
         self.assertEqual('fish', parsed_sentence.object_name)
-        self.assertEqual('food', parsed_sentence.object_type)
+        self.assertEqual('foods', parsed_sentence.object_type)
         self.assertEqual('eat', parsed_sentence.relationship_type_name)
         self.assertTrue(parsed_sentence.relationship_negation)
         self.assertEqual(json.dumps(test_data), parsed_sentence.orig_response)
@@ -157,7 +177,7 @@ class FromWitResponseTests(unittest.TestCase):
         del self.parsed_data['outcomes'][0]['entities']['animal']
         parsed_sentence = ParsedSentence.from_wit_response(self.parsed_data)
         self.assertEqual('species', parsed_sentence.subject_type)
-        self.assertEqual('mammal', parsed_sentence.subject_name)
+        self.assertEqual('mammals', parsed_sentence.subject_name)
         self.assertIsNone(parsed_sentence.object_type)
         self.assertIsNone(parsed_sentence.object_name)
 
@@ -166,9 +186,9 @@ class FromWitResponseTests(unittest.TestCase):
         """
         parsed_sentence = ParsedSentence.from_wit_response(self.parsed_data)
         self.assertEqual('species', parsed_sentence.object_type)
-        self.assertEqual('mammal', parsed_sentence.object_name)
-        self.assertEqual('animal', parsed_sentence.subject_type)
-        self.assertEqual('otter', parsed_sentence.subject_name)
+        self.assertEqual('mammals', parsed_sentence.object_name)
+        self.assertEqual('animals', parsed_sentence.subject_type)
+        self.assertEqual('otters', parsed_sentence.subject_name)
 
     def test_from_wit_response__alt_subject_entity__extra(self):
         """Verify that outcome with unused alt_subject fails.
