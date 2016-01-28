@@ -24,6 +24,7 @@ import exc
 import fact_model
 from fact_query import FactQuery
 from parsed_sentence import ParsedSentence
+from plurals import Plurals
 
 
 logger = logging.getLogger('animalia.FactManager')
@@ -52,6 +53,10 @@ class FactManager(object):
         :arg concept_type: name of concept_type, e.g. 'species'
         
         """
+        # Normalize names of both concept and concept_type before updating database.
+        concept_name = Plurals.get_plural(concept_name.lower())
+        concept_type = Plurals.get_plural(concept_type.lower())
+
         concept = cls._ensure_concept(concept_name)
         type_concept = cls._ensure_concept(concept_type)
         is_relationship = cls._ensure_relationship(concept,

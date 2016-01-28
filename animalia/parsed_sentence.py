@@ -16,6 +16,7 @@ import json
 import logging
 
 from config import Config
+from plurals import Plurals
 
 
 logger = logging.getLogger('animalia.ParsedSentence')
@@ -68,8 +69,8 @@ class ParsedSentence(object):
         """Factory method that extracts subject, object and relationship and data from wit response.
 
         Extract if present:
-        * Sentence subject and subject_type, e.g. 'otter' and 'animal'
-        * Sentence object and object_type, e.g. 'legs' and 'body_part'
+        * Sentence subject and subject_type, e.g. 'otters' and 'animals'
+        * Sentence object and object_type, e.g. 'legs' and 'body_parts'
         * Relationship type name, e.g. 'has'
         * Relationship number, e.g. '4' 
         * Relationship negation
@@ -143,22 +144,22 @@ class ParsedSentence(object):
                 if instance.subject_type:
                     raise ValueError("Parsed multiple subject entities: {0}, {1}".format(
                             instance.subject_type, entity_type))
-                instance.subject_type = entity_type
-                instance.subject_name = val
+                instance.subject_type = Plurals.get_plural(entity_type)
+                instance.subject_name = Plurals.get_plural(val)
 
             elif entity_type in cls.ALT_SUBJECT_ENTITY_TYPES:
                 if alt_subject_type:
                     raise ValueError("Parsed multiple alt subject entities: {0}, {1}".format(
                             alt_subject_type, entity_type))
-                alt_subject_type = entity_type
-                alt_subject_name = val
+                alt_subject_type = Plurals.get_plural(entity_type)
+                alt_subject_name = Plurals.get_plural(val)
 
             else:
                 if instance.object_type:
                     raise ValueError("Parsed multiple object entities: {0}, {1}".format(
                             instance.object_type, entity_type))
-                instance.object_type = entity_type
-                instance.object_name = val
+                instance.object_type = Plurals.get_plural(entity_type)
+                instance.object_name = Plurals.get_plural(val)
 
         # If alt_subject data was found, determine whether it is subject, object or just confusing.
         if alt_subject_type:

@@ -12,7 +12,7 @@ import logging
 import unittest
 import uuid
 
-from mock import Mock, patch
+from mock import Mock, call, patch
 
 import animalia.exc as exc
 import animalia.fact_model as fact_model
@@ -142,6 +142,54 @@ class FactManagerTests(unittest.TestCase):
         """
         sentence = 'The otter, lives in the river!'
         self.assertEqual('the otter lives in the river', FactManager._normalize_sentence(sentence))
+
+    @patch.object(fact_model.db.session, 'commit')
+    @patch.object(FactManager, '_merge_to_db_session')
+    @patch.object(FactManager, '_ensure_relationship')
+    @patch.object(FactManager, '_ensure_concept')
+    def test_add_concept(self, ensure_concept, ensure_relationship, merge, commit):
+        """Verify calls made by add_concept.
+        """
+        # Set up mocks and test data
+        mock_concept_1 = Mock(name='concept_1')
+        mock_concept_2 = Mock(name='concept_2')
+        mock_rel = Mock(name='relationship')
+        ensure_concept.side_effect = [mock_concept_1, mock_concept_2]
+        ensure_relationship.return_value = mock_rel
+        concept_name = 'otters'
+        concept_type = 'animals'
+
+        # Make call
+        FactManager.add_concept(concept_name, concept_type)
+
+        # Verify mocks
+        expected_calls = [call(concept_name), call(concept_type)]
+        self.assertEqual(expected_calls, ensure_concept.call_args_list)
+
+        ensure_relationship.assert_called_once_with(
+            mock_concept_1, mock_concept_2, relationship_type_name='is', error_on_duplicate=False)
+        merge.assert_called_once_with(mock_rel)
+        self.assertEqual(1, commit.call_count)
+
+    @patch.object(fact_model.db.session, 'commit')
+    @patch.object(FactManager, '_merge_to_db_session')
+    @patch.object(FactManager, '_ensure_relationship')
+    @patch.object(FactManager, '_ensure_concept')
+    def test_add_concept__normalize(self, ensure_concept, ensure_relationship, merge, commit):
+        """Verify calls made by add_concept for singular, uppercase concept_name and concept_type.
+        """
+        # Set up mocks and test data
+        ensure_concept.side_effect = [Mock(), Mock()]
+        ensure_relationship.return_value = Mock()
+        concept_name = 'OTTER'
+        concept_type = 'ANIMAL'
+
+        # Make call
+        FactManager.add_concept(concept_name, concept_type)
+
+        # Verify mocks
+        expected_calls = [call('otters'), call('animals')]
+        self.assertEqual(expected_calls, ensure_concept.call_args_list)
 
 
 @patch.object(FactManager, '_merge_to_db_session')
