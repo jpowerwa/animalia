@@ -341,7 +341,8 @@ class FactQuery(object):
             raise ValueError("animal_how_many_query requires subject, object and relationship")
 
         answer = None
-        if self.parsed_query.subject_name == 'animals':
+        if (self.parsed_query.subject_name == 'animals' or
+            self._concept_is_species(self.parsed_query.subject_name)):
             # First scenario: How many animals have legs?
             matches = self._which_animal_query()
             answer = len(matches)
@@ -419,7 +420,8 @@ class FactQuery(object):
                 relationship_type_name,
                 subject_name=self._get_synonymous_names(subject_name))
 
-        return sorted([o.concept_name for o in [r.object for r in matches]])
+        match_names = list(set([o.concept_name for o in [r.object for r in matches]]))
+        return sorted(match_names)
 
     def _which_animal_query(self):
         """Which animals have relationship_type with object?
