@@ -1,6 +1,8 @@
 -- Drop and re-create tables for animalia schema.
 -- See create_database.sql for schema and user creation.
 
+use animalia;
+
 DROP TABLE IF EXISTS `concepts`;
 CREATE TABLE `concepts` (
   `concept_id` char(36) NOT NULL,
