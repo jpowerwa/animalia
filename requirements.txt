@@ -1,0 +1,8 @@
+inflect
+flask
+flask-api
+flask-mysql
+flask-sqlalchemy
+sqlalchemy
+mock
+wit
