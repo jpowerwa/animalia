@@ -108,7 +108,7 @@ class FactManager(object):
         incoming_fact = fact_model.IncomingFact.select_by_text(fact_sentence)
         if not incoming_fact:
             wit_response = cls._query_wit(fact_sentence)
-            # TODO: Handle wit parse error
+            # If wit.ai responds with 500, let it go, since there we cannot recover.
             try:
                 parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
                 parsed_sentence.validate_fact()
@@ -149,7 +149,7 @@ class FactManager(object):
             raise exc.InvalidQueryDataError("Empty query sentence provided")
         query_sentence += '?'
         wit_response = cls._query_wit(query_sentence)
-        # TODO: Handle wit parse error
+        # If wit.ai responds with 500, let it go, since there we cannot recover.
         try:
             parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
             return FactQuery(parsed_query=parsed_sentence).find_answer()
