@@ -76,6 +76,9 @@ debug and test fact query logic
 day 16 
 finish testing. cleanup.
 
+day 17 (a week later)
+tidy up. update README-jpowerwa.md. submit.
+
 
 points of confusion
 1. wit.ai: hard to find description of its general model; confusing that demo emphasis is on voice; would be nice to see set of intents defined in trained wit application.
