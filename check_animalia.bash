@@ -39,21 +39,21 @@ function parse_field() {
 # POST /animals/facts
 function create_fact() {
     local fact=${@}
-    local response=$(${CURL} -X POST "$(get_url /animals/facts)" --data "{\"fact\": \"${fact}\"}")
+    local response=$(curl -s -H "Content-type: application/json" -H "Accept: application/json" -X POST "$(get_url /animals/facts)" --data "{\"fact\": \"${fact}\"}")
     parse_field id $response
 }
 
 # GET /animals/facts/<id>
 function get_fact() {
     local id=$1
-    local response=$(${CURL} -X GET "$(get_url /animals/facts/${id})")
+    local response=$(curl -s -H "Accept: application/json" -X GET "$(get_url /animals/facts/${id})")
     parse_field fact $response
 }
 
 # GET /animals?q=<question>
 function query() {
     local question=$@
-    local response=$(${CURL} -X GET "$(get_url /animals)" --get --data-urlencode "q=${question}")
+    local response=$(curl -s "Accept: application/json" -X GET "$(get_url /animals)" --get --data-urlencode "q=${question}")
     parse_field fact $response
 }
 
