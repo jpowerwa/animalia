@@ -15,7 +15,7 @@ import logging
 import mock
 
 from animalia import app
-from animalia.exc import IncomingDataError
+from animalia.exc import IncomingDataError, ExternalApiError
 from animalia.fact_manager import FactManager
 
 
@@ -193,6 +193,25 @@ class FactManagerTests(unittest.TestCase):
                                      'details': 'boo hoo'}),
                          response.data)
 
+    @mock.patch.object(FactManager, 'fact_from_sentence')
+    def test_post_fact__external_api_error(self, make_fact):
+        """Verify 400 response if wit.ai call fails.
+        """
+        # Set up mocks and test data
+        make_fact.side_effect = ex = ExternalApiError('bad news')
+
+        # Make call
+        logger = logging.getLogger('animalia')
+        with mock.patch.object(logger, 'exception') as log_ex:
+            response = self.post_fact('cool fact')
+        log_ex.assert_called_once_with(ex)
+
+        # Verify response status and data
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertEqual(json.dumps({'message': 'Failed to parse your fact',
+                                     'details': 'bad news'}),
+                         response.data)
+
     @mock.patch.object(FactManager, 'query_facts')
     def test_query_facts(self, query_facts):
         """Verify success scenario.
@@ -258,6 +277,26 @@ class FactManagerTests(unittest.TestCase):
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
         self.assertEqual(json.dumps({'message': 'Failed to parse your question',
                                      'details': 'boo hoo'}),
+                         response.data)
+
+    @mock.patch.object(FactManager, 'query_facts')
+    def test_query_facts__external_api_error(self, query_facts):
+        """Verify 400 response if wit.ai call fails.
+        """
+        # Set up mocks and test data
+        question = "who's your best friend"
+        query_facts.side_effect = ex = ExternalApiError('bad news')
+
+        # Make call
+        logger = logging.getLogger('animalia')
+        with mock.patch.object(logger, 'exception') as log_ex:
+            response = self.query_facts(question)
+        log_ex.assert_called_once_with(ex)
+        
+        # Verify response status and data
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertEqual(json.dumps({'message': 'Failed to parse your question',
+                                     'details': 'bad news'}),
                          response.data)
 
 

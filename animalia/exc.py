@@ -6,6 +6,11 @@
 
 from __future__ import unicode_literals
 
+class ExternalApiError(Exception):
+    """Error communicating with external API.
+    """
+    pass
+
 class IncomingDataError(Exception):
     """Base class for errors processing incoming fact or query.
     """

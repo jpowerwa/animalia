@@ -27,7 +27,7 @@ logger = app.logger
 
 # Import after app has been created
 from fact_manager import FactManager
-from exc import IncomingDataError
+from exc import IncomingDataError, ExternalApiError
 
 @app.route("/")
 def main():
@@ -118,7 +118,7 @@ def post_fact():
         try:
             fact = FactManager.fact_from_sentence(fact_sentence)
             response_data = {'id': str(fact.fact_id)}
-        except IncomingDataError as ex:
+        except (IncomingDataError, ExternalApiError) as ex:
             logger.exception(ex)
             response_data = {'message': 'Failed to parse your fact',
                              'details': '{0}'.format(ex)}
@@ -161,7 +161,7 @@ def query_facts():
             else:
                 response_data = {'message': "I can't answer your question."}
                 response_code = status.HTTP_404_NOT_FOUND
-        except IncomingDataError as ex:
+        except (IncomingDataError, ExternalApiError) as ex:
             logger.exception(ex)
             response_data = {'message': 'Failed to parse your question',
                              'details': '{0}'.format(ex)}

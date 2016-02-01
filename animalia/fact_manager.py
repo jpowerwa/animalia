@@ -93,6 +93,7 @@ class FactManager(object):
         :rtype: :py:class:`~fact_model.IncomingFact`
         :return: IncomingFact object created from provided sentence
         :raise: :py:class:`~exc.IncomingDataError` if fact cannot be processed
+        :raise: :py:class:`~exc.ExternalApiError` if there is a problem with wit.ai API
 
         :type fact_sentence: unicode
         :arg fact_sentence: fact sentence in format understandable by configured wit.ai instance
@@ -105,7 +106,6 @@ class FactManager(object):
         incoming_fact = fact_model.IncomingFact.select_by_text(fact_sentence)
         if not incoming_fact:
             wit_response = cls._query_wit(fact_sentence)
-            # If wit.ai responds with 500, let it go, since there we cannot recover.
             try:
                 parsed_sentence = ParsedSentence.from_wit_response(wit_response)
                 parsed_sentence.validate_fact()
@@ -136,6 +136,7 @@ class FactManager(object):
         :rtype: unicode 
         :return: string that answers provided question; None if there is no known answer
         :raise: :py:class:`~exc.IncomingQueryDataError` if sentence is invalid or cannot be parsed
+        :raise: :py:class:`~exc.ExternalApiError` if there is a problem with wit.ai API
 
         :type query_sentence: unicode
         :arg query_sentence: query sentence in format understandable by configured wit.ai instance
@@ -146,7 +147,6 @@ class FactManager(object):
             raise exc.InvalidQueryDataError("Empty query sentence provided")
         query_sentence += '?'
         wit_response = cls._query_wit(query_sentence)
-        # If wit.ai responds with 500, let it go, since there we cannot recover.
         try:
             parsed_sentence = ParsedSentence.from_wit_response(wit_response)
             return FactQuery(parsed_query=parsed_sentence).find_answer()
@@ -345,18 +345,26 @@ class FactManager(object):
     def _query_wit(cls, sentence):
         """Wrapper around wit.ai text_query API.
 
-        :rtype: dict
+        :rtype: dict 
         :return: wit.ai response
+        :raises: :py:class:`exc.ExternalApiError`
 
         :type sentence: unicode
         :arg sentence: input for wit.text_query
         
         """
-        url = 'https://api.wit.ai/message?v=20141022&q={0}'.format(
-            urllib.quote_plus(sentence))
+        url = '{0}?v={1}&q={2}'.format(
+            Config.wit_query_uri, Config.wit_api_version, urllib.quote_plus(sentence))
         headers = {'Accept': 'application/json',
                    'Authorization': 'Bearer {0}'.format(Config.wit_access_token)}
-        return requests.get(url, headers=headers).json()
+        try:
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                raise exc.ExternalApiError("Failed response from wit.ai: {0}".format(response))
+        except requests.exceptions.RequestException as ex:
+            raise exc.ExternalApiError("Error communicating with wit.ai: {0}".format(ex))
 
     @classmethod
     def _save_parsed_fact(cls, parsed_sentence):

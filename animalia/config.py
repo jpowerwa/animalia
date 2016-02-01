@@ -12,6 +12,8 @@ class Config(object):
     db_connection = 'mysql://animalia:grrargh@localhost/animalia'
 
     wit_access_token = 'JZKCMFUAZKZ5FQZT3JXEZVJM2XVNNPXI'
+    wit_query_uri = 'https://api.wit.ai/message'
+    wit_api_version = '20141022'
 
     # Recommended minimum threshold for wit response to be considered accurate
     parsed_data_confidence_threshold = 0.7
