@@ -11,7 +11,7 @@ The ORM uses SQLAlchemy and is defined in fact_model.py. The FactModel depends o
 
 ## Request flow
 
-An incoming HTTP request arrives at the appropriate Flask handler defined in __init__.py. Defining handles in __init__.py seems to be a standard pattern for a Flask app. After some basic request verification, the API layer calls the appropriate FactManager method. 
+An incoming HTTP request arrives at the appropriate Flask handler defined in '__init__.py'. Defining handles in '__init__.py' seems to be a common pattern for a Flask app. After some basic request verification, the API layer calls the appropriate FactManager method. 
 
 
 ### FactManager
@@ -23,7 +23,9 @@ FactManager directly backs the API layer. The FactManager knows nothing about Fl
 
 ParsedSentence encapsulates the logic required to process wit.ai API responses. These responses are not as predictable as one might hope. One complexity is that the concepts in the responses are not normalized. For example, the data response for a fact with the subject "otter" may have "otter" as an identified entity, or it may have "otters." To handle this, ParsedSentence transforms all concepts into plural nouns on the way in. Though transforming the nouns to the singular form seems more natural, the answer to a question like "What does a bear eat?" seemed more natural with plural nouns, i.e. "berries, insects, salmon" than with singular nouns, i.e. "berry, insect, salmon." 
 
-The wit.ai response data can be awkward in other ways. Sometimes queries come back labeled as facts, and sometimes high-confidence responses are wrong. At one point, ParsedSentence raised if the confidence level on an outcome was below a configurable threshold, but even with a threshold as low as 0.5, the training data set could not be successfully processed. To handle this, I changed the raised exception to a warning, figuring that if the data was really invalid, the fact or query would not have the necessary data for processing, and an application exception would be raised later on.
+The wit.ai response data can be awkward in other ways. Sometimes queries come back with the wrong intents. For example, "What does a bear eat?" and "Does a bear eat berries?" both result in an **animal_eat_query** with "bear" as the subject and no object or relationship entities. The wit.ai responses are identical even though one query should be answered with a list of nouns and the other with a "yes" or "no." On the other hand, "Does an otter eat berries?" results in an **animal_eat_fact** with "otter" as the subject, "berries" as the object and "eat" as the relationship type. 
+
+Sometimes the response to a valid sentence has a very low confidence. At one point, ParsedSentence raised if the confidence level on an outcome was below a configurable threshold, but even with a threshold as low as 0.5, the training data set could not be successfully processed. For example, the wit.ai response to "The bee has a stinger" has a confidence of 0.465, and the response to "The bee has wings" has a confidence of 0.265. Both facts are derived from the provided training data. To handle this, I changed the raised exception to a warning. If the parsed data is not valid, an application exception will be raised later on.
 
 
 ### FactQuery
