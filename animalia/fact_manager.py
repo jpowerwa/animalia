@@ -15,9 +15,9 @@ from __future__ import unicode_literals
 import json
 import logging
 import re
+import requests
+import urllib
 import uuid 
-
-import wit
 
 from config import Config
 import exc
@@ -32,9 +32,6 @@ logger = logging.getLogger('animalia.FactManager')
 
 class FactManager(object):
     __doc__ = __doc__
-
-    # Initialize wit exactly once
-    _wit_initialized = False
 
     # Pattern for stripping characters from user-specified fact sentences.
     _non_alnum_exp = re.compile(r'[^\w\s]', flags=re.UNICODE)
@@ -110,7 +107,7 @@ class FactManager(object):
             wit_response = cls._query_wit(fact_sentence)
             # If wit.ai responds with 500, let it go, since there we cannot recover.
             try:
-                parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
+                parsed_sentence = ParsedSentence.from_wit_response(wit_response)
                 parsed_sentence.validate_fact()
             except ValueError as ex:
                 raise exc.InvalidFactDataError("Invalid fact: {0}; wit_response={1}".format(
@@ -151,7 +148,7 @@ class FactManager(object):
         wit_response = cls._query_wit(query_sentence)
         # If wit.ai responds with 500, let it go, since there we cannot recover.
         try:
-            parsed_sentence = ParsedSentence.from_wit_response(json.loads(wit_response))
+            parsed_sentence = ParsedSentence.from_wit_response(wit_response)
             return FactQuery(parsed_query=parsed_sentence).find_answer()
         except ValueError as ex:
             raise exc.InvalidQueryDataError("Invalid query: {0}; wit_response={1}".format(
@@ -355,10 +352,11 @@ class FactManager(object):
         :arg sentence: input for wit.text_query
         
         """
-        if not cls._wit_initialized:
-            wit.init()
-            cls._wit_initialized = True
-        return wit.text_query(sentence, Config.wit_access_token)
+        url = 'https://api.wit.ai/message?v=20141022&q={0}'.format(
+            urllib.quote_plus(sentence))
+        headers = {'Accept': 'application/json',
+                   'Authorization': 'Bearer {0}'.format(Config.wit_access_token)}
+        return requests.get(url, headers=headers).json()
 
     @classmethod
     def _save_parsed_fact(cls, parsed_sentence):

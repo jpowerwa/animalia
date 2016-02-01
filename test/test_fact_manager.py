@@ -43,7 +43,7 @@ class FactManagerTests(unittest.TestCase):
         normalize_sentence.return_value = mock_normalized_sentence = Mock(name='norm_sentence')
         select_fact.return_value = None
         test_data = copy.deepcopy(wit_responses.animal_species_fact_data)
-        query_wit.return_value = json.dumps(test_data)
+        query_wit.return_value = test_data
         mock_parsed_sentence = Mock(name='parsed_sentence',
                                     is_fact=Mock(return_value=True),
                                     relationship_negation=False)
