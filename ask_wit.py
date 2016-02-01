@@ -23,8 +23,9 @@ from __future__ import unicode_literals
 import argparse
 import logging
 import sys
+import urllib
 
-import wit
+import requests
 
 # local 
 from animalia.config import Config
@@ -40,17 +41,18 @@ def parse_args():
     return parser.parse_args()
 
 def query_wit(query):
-    response = wit.text_query(query, Config.wit_access_token)
-    print('Response: {}'.format(response))
+    url = 'https://api.wit.ai/message?v=20141022&q={0}'.format(
+        urllib.quote_plus(query))
+    headers = {'Accept': 'application/json',
+               'Authorization': 'Bearer {0}'.format(Config.wit_access_token)}
+    response = requests.get(url, headers=headers)
+    print('Response status: {0}'.format(response.status_code))
+    response_data = response.json()
+    print('Response data: {0}'.format(response_data))
 
 
 if __name__ == "__main__":
     args = parse_args()
-
-    wit.init()
-    try:
-        query_wit(args.query)
-    finally:
-        wit.close()
+    query_wit(args.query)
     sys.exit(0)
 

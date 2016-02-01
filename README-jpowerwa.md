@@ -104,10 +104,9 @@ The clumsy web UI is derived from an html page using bootstrap.js that came alon
 3. source venvs/animalia/bin/activate
 4. git clone git@github.com:/jpowerwa/animalia
 5. pip install -r animalia/requirements.txt
-6. sudo apt-get install -y libsox-dev
-7. start mysql
-8. source animalia/sql/create_database.sql
-9. source animalia/sql/fact_schema.sql
+6. start mysql
+7. source animalia/sql/create_database.sql
+8. source animalia/sql/fact_schema.sql
 
 
 ## Run unittests
