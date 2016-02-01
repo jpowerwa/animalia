@@ -49,20 +49,20 @@ Sometimes the wit.ai response data is fuzzy enough to result in incorrect answer
 
 ### Exceptions
 
-The API spec requires that the implemention handle fact not found errors, incoming fact parse errors, and malformed query errors. The implementation groups the latter two errors as IncomingDataErrors, an application-specific exception with multiple subclasses. An IncomingDataError may be raised by FactManager.fact_from_sentence, which backs the Add Fact API, or by FactManager.query_facts, which backs the Query Facts API. The API layer handles an IncomingDataError by responding with 400 Bad Request and the message "Failed to parse your fact"or "Failed to parse your question" as appropriate. The response also includes a "details" attribute with specifics about the type of error. 
+The API spec requires that the implemention handle **fact not found** errors, **incoming fact parse errors, and malformed query errors. The implementation groups the latter two errors as IncomingDataErrors, an application-specific exception with multiple subclasses. An IncomingDataError may be raised by FactManager.fact_from_sentence, which backs the Add Fact API, or by FactManager.query_facts, which backs the Query Facts API. The API layer handles an IncomingDataError by responding with 400 Bad Request and the message "Failed to parse your fact"or "Failed to parse your question" as appropriate. The response also includes a "details" attribute with specifics about the type of error. 
 
-The definition of a parse error is fuzzy, since wit.ai never refuses to parse a supplied sentence. If it does not understand anything about the provided text, it returns a response with a low confidence. For example, asking the wit.ai animalia instance "Can you hear me now?" returns a response with an animal_fur_fact intent and a confidence of 0.158. Given this behavior, the validity of an incoming fact must be determined by application logic. 
+The definition of a parse error is fuzzy, since wit.ai never refuses to parse a supplied sentence. If it does not understand anything about the provided text, it returns a response with a low confidence. For example, asking the wit.ai animalia instance "Can you hear me now?" returns a response with an animal_fur_fact intent and a confidence of 0.158. Since I removed the enforcement of a confidence threshold after experimenting with the bootstrap data, the validity of an incoming fact must be determined by application logic. 
 
 
 ## Helper scripts
 
 ### ask-wit.py 
 
-The ask-wit.py script submits the provided sentence to wit.ai for parsing and displays the raw response. 
+The ask-wit.py script submits the provided sentence to wit.ai for parsing and displays the raw response. Its intended purpose is for experimentation.
 
 ### train.py
 
-The train.py script processes a csv file of concepts and relationships and submits concepts and facts to FactManager. This script does not need the animalia web application to be running. Note that adding the training data can be slow, depending on the responsiveness of the external wit.ai service. I ran into trouble processing all of the provided training data as fact sentences; the wit.ai animalia instance is not set up to handle fact sentences categorizing concepts other than animals. For example, submitting the fact "a meadow is a place" interprets meadow as an animal and place as a species. Understandable, but inconvenient. To avoid this issue, train.py uses the FactManager.add_concept method. This method was introduced solely to support the data bootstrapping process. It does not rely on wit.ai.
+The train.py script processes the provided csv file of concepts and relationships and submits concepts and facts to FactManager. This script does not need the animalia web application to be running. Note that adding the training data can be slow, depending on the responsiveness of the external wit.ai service. I ran into trouble processing all of the provided training data as fact sentences; the wit.ai animalia instance is not set up to handle fact sentences categorizing concepts other than animals. For example, submitting the fact "A meadow is a place" interprets meadow as an animal and place as a species. Understandable, but inconvenient. To avoid this issue, train.py uses the FactManager.add_concept method. This method was introduced solely to support the data bootstrapping process. It does not rely on wit.ai.
 
 
 ## Modifications
@@ -73,9 +73,9 @@ I made some modifications to the training data provided in animalia.csv in the p
 
 Second, I edited the gecko entry to specify reptile instead of mammal as the species.
 
-Third, I added "wings" as a body part for "heron" and "bee."
+Third, I added "wings" as a body part for heron and bee.
 
-Fourth, I edited bear entry to specify "salmon" instead of "fish" as a food. I did this to provide data to test the "which animals eat fish" query, which requires the selection of subjects with "eat" relationships directly to the species "fish" and subjects with "eat" relationships to members of the species "fish."
+Fourth, I edited the bear entry to specify "salmon" instead of "fish" as a food. I did this to provide data to test the "Which animals eat fish?" query, which requires the selection of subjects with "eat" relationships directly to the species "fish" and subjects with "eat" relationships to members of the species "fish."
 
 ### check_animalia.bash
 
