@@ -142,7 +142,7 @@ The animalia app needs to be running for the APIs to be accessed. It has a very 
 
 1. start virtualenv (source venvs/animalia/bin/activate)
 2. go to animalia directory
-3. python run.py [h] [-p <PORT>] [-v]
+3. python run.py [-h] [-p <PORT>] [-v]
 4. go to http://localhost:8080
 
 
